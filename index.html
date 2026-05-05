@@ -114,6 +114,7 @@
     border: 1px solid var(--border); border-radius: 8px;
     color: var(--text); font-family: 'Outfit', sans-serif; font-size: 17px;
     outline: none; transition: border-color 0.2s;
+    -webkit-user-select: text;
   }
   .field-input:focus { border-color: var(--accent); background: #fff; }
   .field-input.correct { border-color: #4caf7a; background: #e8f8ef; color: #1a6e3a; font-weight: 600; }
@@ -647,11 +648,12 @@ function showWord() {
   document.getElementById('q-hint').textContent = isVerb ? 'Base form · Past simple · Past participle' : '';
   const grid = document.getElementById('fields-grid');
   grid.className = 'fields-grid ' + (isVerb ? 'three' : 'one');
+  const inputAttrs = 'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false"';
   grid.innerHTML = isVerb
-    ? `<div class="field-wrap"><div class="field-label">Base form</div><input class="field-input" id="f-base" placeholder="es. go" autocomplete="off" onkeydown="handleKey(event)"></div>
-       <div class="field-wrap"><div class="field-label">Past simple</div><input class="field-input" id="f-past" placeholder="es. went" autocomplete="off" onkeydown="handleKey(event)"></div>
-       <div class="field-wrap"><div class="field-label">Past participle</div><input class="field-input" id="f-part" placeholder="es. gone" autocomplete="off" onkeydown="handleKey(event)"></div>`
-    : `<div class="field-wrap"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." autocomplete="off" onkeydown="handleKey(event)"></div>`;
+    ? `<div class="field-wrap"><div class="field-label">Base form</div><input class="field-input" id="f-base" placeholder="es. go" ${inputAttrs} onkeydown="handleKey(event)"></div>
+       <div class="field-wrap"><div class="field-label">Past simple</div><input class="field-input" id="f-past" placeholder="es. went" ${inputAttrs} onkeydown="handleKey(event)"></div>
+       <div class="field-wrap"><div class="field-label">Past participle</div><input class="field-input" id="f-part" placeholder="es. gone" ${inputAttrs} onkeydown="handleKey(event)"></div>`
+    : `<div class="field-wrap"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." ${inputAttrs} onkeydown="handleKey(event)"></div>`;
   document.getElementById('feedback').textContent = '';
   document.getElementById('feedback').className = 'feedback-msg';
   document.getElementById('correct-reveal').innerHTML = '';
@@ -694,10 +696,12 @@ function checkAnswer() {
     stats.ok++;
     document.getElementById('feedback').textContent = '✓ Corretto!';
     document.getElementById('feedback').className = 'feedback-msg correct';
-    document.getElementById('q-audio-btn').style.display = 'none';
+    document.getElementById('q-audio-btn').style.display = 'flex';
+    document.getElementById('next-btn').style.display = 'inline-block';
     saveStats(); updateNavScore();
-    // Auto-avanza dopo 900ms
-    setTimeout(() => { currentIdx++; showWord(); }, 900);
+    speakCurrent();
+    // Auto-avanza dopo 2000ms così hai tempo di sentire la pronuncia
+    setTimeout(() => { currentIdx++; showWord(); }, 2000);
   } else {
     stats.ko++;
     document.getElementById('feedback').textContent = '✗ Sbagliato';
