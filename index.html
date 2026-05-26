@@ -291,7 +291,7 @@
   <div class="progress-wrap"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
   <div class="card" id="quiz-card">
     <div class="card-label" id="q-label">Traduci in inglese</div>
-    <div class="card-word-row">
+    <div class="card-word-row" id="word-row">
       <div class="card-word" id="q-word">—</div>
       <button class="audio-btn" id="q-audio-btn" onclick="speakCurrent()" title="Ascolta risposta" style="display:none">
         <svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg>
@@ -542,10 +542,13 @@ function showWord() {
   const isVerb = w.type==='verb';
   document.getElementById('q-label').textContent = isVerb ? 'Scrivi le tre forme del verbo' : 'Traduci in inglese';
   document.getElementById('q-word').textContent = w.it;
-  const srcBadge = w.source === 'sheet' 
-    ? '<span class="source-badge source-sheet">Sheet</span>'
-    : '<span class="source-badge source-builtin">Built-in</span>';
-  document.getElementById('q-word').insertAdjacentHTML('afterend', srcBadge);
+  const existingBadge = document.getElementById('source-badge');
+  if (existingBadge) existingBadge.remove();
+  const badge = document.createElement('span');
+  badge.id = 'source-badge';
+  badge.className = w.source === 'sheet' ? 'source-badge source-sheet' : 'source-badge source-builtin';
+  badge.textContent = w.source === 'sheet' ? 'Sheet' : 'Built-in';
+  document.getElementById('q-word').insertAdjacentElement('afterend', badge);
   document.getElementById('q-hint').textContent = isVerb ? 'Base form · Past simple · Past participle' : '';
   const grid = document.getElementById('fields-grid');
   grid.className = 'fields-grid ' + (isVerb ? 'three' : 'one');
