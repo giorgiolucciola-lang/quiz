@@ -1,0 +1,816 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>English Practice</title>
+<link href="https://fonts.googleapis.com/css2?family=Lora:wght@400;500&family=Outfit:wght@300;400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf9f7;
+    --surface: #ffffff;
+    --surface2: #f5f3ef;
+    --border: #e8e4dc;
+    --border2: #d0ccc4;
+    --accent: #2e6a4e;
+    --accent-light: #e8f4ee;
+    --accent-dim: #a8c8b8;
+    --text: #1a1814;
+    --text2: #6a6560;
+    --text3: #a8a49e;
+    --green: #2a7a4a;
+    --green-bg: #eaf5ee;
+    --green-border: #b0d8be;
+    --red: #c0392b;
+    --red-bg: #fdf0ee;
+    --red-border: #e8b0a8;
+    --radius: 10px;
+  }
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: 'Outfit', sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    min-height: 100vh;
+  }
+
+  nav {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 14px 24px;
+    border-bottom: 1px solid var(--border);
+    background: var(--surface);
+    position: sticky; top: 0; z-index: 100;
+    flex-wrap: wrap; gap: 10px;
+  }
+  .nav-title {
+    font-family: 'Lora', serif;
+    font-size: 18px; color: var(--accent); font-weight: 500;
+  }
+  .nav-tabs { display: flex; gap: 4px; }
+  .tab-btn {
+    padding: 6px 15px; border-radius: 20px;
+    border: 1px solid transparent;
+    background: transparent;
+    color: var(--text2);
+    font-family: 'Outfit', sans-serif; font-size: 13px; font-weight: 500;
+    cursor: pointer; transition: all 0.2s;
+  }
+  .tab-btn:hover { color: var(--text); border-color: var(--border2); }
+  .tab-btn.active { background: var(--accent-light); color: var(--accent); border-color: var(--accent-dim); }
+  .score-pill { font-size: 13px; color: var(--text2); display: flex; gap: 14px; align-items: center; }
+  .score-pill span { display: flex; align-items: center; gap: 5px; }
+  .dot { width: 7px; height: 7px; border-radius: 50%; }
+  .dot-g { background: var(--green); }
+  .dot-r { background: var(--red); }
+
+  .section { display: none; padding: 24px; max-width: 760px; margin: 0 auto; }
+  .section.active { display: block; }
+
+  /* QUIZ */
+  .quiz-controls { display: flex; gap: 10px; margin-bottom: 20px; flex-wrap: wrap; align-items: center; }
+  select {
+    padding: 8px 14px; background: var(--surface);
+    border: 1px solid var(--border2); border-radius: var(--radius);
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 14px;
+    cursor: pointer; outline: none;
+  }
+  select:focus { border-color: var(--accent); }
+
+  .btn {
+    padding: 8px 18px; border-radius: var(--radius);
+    border: 1px solid var(--border2); background: var(--surface);
+    color: var(--text); font-family: 'Outfit', sans-serif;
+    font-size: 14px; font-weight: 500; cursor: pointer; transition: all 0.15s;
+  }
+  .btn:hover { border-color: var(--accent); color: var(--accent); }
+  .btn.primary {
+    background: var(--accent); color: #fff;
+    border-color: var(--accent); font-weight: 600;
+  }
+  .btn.primary:hover { background: #235a3f; border-color: #235a3f; }
+
+  .progress-wrap { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 24px; }
+  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+
+  .card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 14px; padding: 28px; margin-bottom: 16px;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.05);
+  }
+
+  .card-label { font-size: 13px; font-weight: 600; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text3); margin-bottom: 8px; }
+  .card-word-row { display: flex; align-items: center; gap: 12px; margin-bottom: 4px; }
+  .card-word { font-family: 'Lora', serif; font-size: 38px; color: var(--text); }
+  .card-hint { font-size: 15px; color: var(--text3); margin-bottom: 22px; }
+
+  .fields-grid { display: grid; gap: 12px; }
+  .fields-grid.three { grid-template-columns: 1fr 1fr 1fr; }
+  .fields-grid.one { grid-template-columns: 1fr; }
+
+  .field-wrap { display: flex; flex-direction: column; gap: 5px; }
+  .field-label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); }
+  .field-input {
+    padding: 12px 16px; background: var(--surface2);
+    border: 1px solid var(--border); border-radius: 8px;
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 17px;
+    outline: none; transition: border-color 0.2s;
+    -webkit-user-select: text;
+    /* Fix iPhone keyboard */
+    font-size: 16px;
+  }
+  .field-input:focus { border-color: var(--accent); background: #fff; }
+  .field-input.correct { border-color: #4caf7a; background: #e8f8ef; color: #1a6e3a; font-weight: 600; }
+  .field-input.wrong { border-color: #e05555; background: #fdeaea; color: #c0392b; font-weight: 600; }
+  .field-input:disabled { opacity: 1; cursor: default; }
+
+  .answer-row { display: flex; gap: 10px; margin-top: 20px; align-items: center; flex-wrap: wrap; }
+  .feedback-msg { font-size: 16px; font-weight: 500; flex: 1; min-height: 20px; }
+  .feedback-msg.correct { color: var(--green); }
+  .feedback-msg.wrong { color: var(--red); }
+
+  .correct-answer {
+    font-size: 15px; color: var(--text2); margin-top: 10px;
+    padding: 12px 16px; background: var(--red-bg);
+    border-radius: 8px; border-left: 3px solid var(--red-border);
+  }
+  .correct-answer strong { color: var(--red); }
+
+  /* Correzione errore di battitura */
+  .fix-typo-wrap {
+    margin-top: 10px;
+    display: flex; gap: 8px; align-items: center; flex-wrap: wrap;
+  }
+  .fix-typo-input {
+    padding: 8px 12px; background: var(--surface2);
+    border: 1px solid var(--border2); border-radius: 8px;
+    color: var(--text); font-family: 'Outfit', sans-serif; font-size: 15px;
+    outline: none; flex: 1; min-width: 120px;
+    font-size: 16px;
+  }
+  .fix-typo-input:focus { border-color: var(--accent); }
+  .fix-typo-label { font-size: 13px; color: var(--text3); }
+
+  .audio-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid var(--border2); background: var(--surface2);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s;
+  }
+  .audio-btn:hover { border-color: var(--accent); }
+  .audio-btn.playing { background: var(--accent); border-color: var(--accent); }
+  .audio-btn svg { width: 12px; height: 12px; fill: var(--text2); }
+  .audio-btn.playing svg { fill: #fff; }
+
+  /* VOCAB TABLE */
+  .vocab-toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+  .vocab-toolbar input {
+    flex: 1; min-width: 200px; padding: 8px 14px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius); color: var(--text);
+    font-family: 'Outfit', sans-serif; font-size: 14px; outline: none;
+  }
+  .vocab-toolbar input:focus { border-color: var(--accent); }
+
+  .vocab-table { width: 100%; border-collapse: collapse; background: var(--surface); border-radius: 12px; overflow: hidden; border: 1px solid var(--border); }
+  .vocab-table th {
+    text-align: left; font-size: 11px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--text3); padding: 10px 14px;
+    background: var(--surface2); border-bottom: 1px solid var(--border);
+  }
+  .vocab-table td { padding: 11px 14px; font-size: 15px; border-bottom: 1px solid var(--border); vertical-align: middle; }
+  .vocab-table tr:last-child td { border-bottom: none; }
+  .vocab-table tr:hover td { background: var(--accent-light); }
+
+  .badge { display: inline-block; font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; padding: 2px 7px; border-radius: 4px; }
+  .badge-verb { background: #e8f4ee; color: #2a7a4a; border: 1px solid #b0d8be; }
+  .badge-vocab { background: #eef0f8; color: #4a5a9a; border: 1px solid #b8c0e0; }
+
+  .it-cell { color: var(--text2); }
+  .en-cell { color: var(--text); font-weight: 500; }
+  .past-cell { color: var(--text2); font-size: 13px; }
+
+  .tbl-audio {
+    width: 28px; height: 28px; border-radius: 50%;
+    border: 1px solid var(--border); background: transparent;
+    cursor: pointer; display: flex; align-items: center; justify-content: center; transition: all 0.15s;
+  }
+  .tbl-audio:hover { border-color: var(--accent); background: var(--accent-light); }
+  .tbl-audio svg { width: 10px; height: 10px; fill: var(--text3); }
+  .tbl-audio:hover svg { fill: var(--accent); }
+
+  /* STATS */
+  .stats-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 14px; margin-bottom: 24px; }
+  .stat-card { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 18px; }
+  .stat-label { font-size: 11px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); margin-bottom: 6px; }
+  .stat-value { font-family: 'Lora', serif; font-size: 28px; color: var(--accent); }
+
+  .reset-link { font-size: 13px; color: var(--text3); cursor: pointer; text-decoration: underline; }
+  .reset-link:hover { color: var(--red); }
+
+  /* ERRORS */
+  .errors-toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
+  .errors-toolbar input {
+    flex: 1; min-width: 200px; padding: 8px 14px;
+    background: var(--surface); border: 1px solid var(--border2);
+    border-radius: var(--radius); color: var(--text);
+    font-family: 'Outfit', sans-serif; font-size: 14px; outline: none;
+  }
+  .errors-toolbar input:focus { border-color: var(--accent); }
+  .error-card {
+    background: var(--surface); border: 1px solid var(--border);
+    border-left: 4px solid var(--red-border);
+    border-radius: var(--radius); padding: 14px 18px;
+    margin-bottom: 10px; display: flex; align-items: center; gap: 16px;
+    flex-wrap: wrap;
+  }
+  .error-card:hover { border-left-color: var(--red); }
+  .error-it { font-size: 16px; font-weight: 500; color: var(--text); width: 180px; flex-shrink: 0; }
+  .error-en { font-size: 15px; color: var(--accent); font-weight: 500; flex: 1; }
+  .error-forms { font-size: 13px; color: var(--text2); margin-top: 2px; }
+  .error-count { font-size: 12px; color: var(--red); font-weight: 600; background: var(--red-bg); padding: 3px 8px; border-radius: 20px; flex-shrink: 0; }
+  .error-date { font-size: 11px; color: var(--text3); flex-shrink: 0; }
+  .empty-errors { text-align: center; padding: 48px 24px; color: var(--text3); font-size: 15px; }
+  .empty-errors span { font-size: 32px; display: block; margin-bottom: 10px; }
+
+  /* FOOTER */
+  .app-footer {
+    text-align: center; padding: 32px 24px 24px;
+    font-size: 12px; color: var(--text3);
+    border-top: 1px solid var(--border); margin-top: 40px;
+  }
+  .app-footer a { color: var(--accent-dim); text-decoration: none; }
+  .app-footer a:hover { color: var(--accent); }
+
+  @media (max-width: 560px) {
+    .fields-grid.three { grid-template-columns: 1fr; }
+    .card-word { font-size: 24px; }
+    nav { flex-wrap: wrap; gap: 8px; }
+  }
+</style>
+</head>
+<body>
+
+<nav>
+  <span class="nav-title">English Practice · <span style="font-size:13px;font-weight:400;color:var(--text2)">by Claude</span></span>
+  <div class="nav-tabs">
+    <button class="tab-btn active" onclick="showSection('quiz', this)">Quiz</button>
+    <button class="tab-btn" onclick="showSection('vocab', this)">Vocabolario</button>
+    <button class="tab-btn" onclick="showSection('errors', this)">I miei errori <span id="nav-err-count"></span></button>
+    <button class="tab-btn" onclick="showSection('stats', this)">Statistiche</button>
+  </div>
+  <div class="score-pill">
+    <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
+    <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
+  </div>
+</nav>
+
+<!-- QUIZ -->
+<div class="section active" id="sec-quiz">
+  <div class="quiz-controls">
+    <select id="mode-select" onchange="resetQuiz()">
+      <option value="all">Tutto (verbi + vocaboli)</option>
+      <option value="verbs">Solo verbi irregolari</option>
+      <option value="vocab">Solo vocaboli</option>
+    </select>
+    <select id="order-select" onchange="resetQuiz()">
+      <option value="random">Ordine casuale</option>
+      <option value="sequential">Ordine originale</option>
+    </select>
+    <button class="btn" onclick="doResetQuiz()">Ricomincia</button>
+  </div>
+  <div class="progress-wrap"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
+  <div class="card" id="quiz-card">
+    <div class="card-label" id="q-label">Traduci in inglese</div>
+    <div class="card-word-row">
+      <div class="card-word" id="q-word">—</div>
+      <button class="audio-btn" id="q-audio-btn" onclick="speakCurrent()" title="Ascolta risposta" style="display:none">
+        <svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg>
+      </button>
+    </div>
+    <div class="card-hint" id="q-hint"></div>
+    <div class="fields-grid one" id="fields-grid"></div>
+    <div class="answer-row">
+      <div class="feedback-msg" id="feedback"></div>
+      <button class="btn" id="skip-btn" type="button" onclick="skipWord()">Salta</button>
+      <button class="btn primary" id="check-btn" type="button" onclick="checkAnswer()">Controlla</button>
+      <button class="btn primary" id="next-btn" type="button" onclick="nextWord()" style="display:none">Avanti →</button>
+    </div>
+    <div id="correct-reveal"></div>
+    <div id="fix-typo-area"></div>
+  </div>
+</div>
+
+<!-- VOCABOLARIO -->
+<div class="section" id="sec-vocab">
+  <div class="vocab-toolbar">
+    <input type="text" id="vocab-search" placeholder="Cerca in italiano o inglese..." oninput="renderVocabTable()">
+    <select id="vocab-filter" onchange="renderVocabTable()">
+      <option value="all">Tutto</option>
+      <option value="verbs">Solo verbi</option>
+      <option value="vocab">Solo vocaboli</option>
+    </select>
+  </div>
+  <table class="vocab-table">
+    <thead>
+      <tr>
+        <th>Tipo</th><th>Italiano</th><th>Base / Inglese</th><th>Past</th><th>Participle</th><th></th>
+      </tr>
+    </thead>
+    <tbody id="vocab-tbody"></tbody>
+  </table>
+</div>
+
+<!-- ERRORI -->
+<div class="section" id="sec-errors">
+  <div class="errors-toolbar">
+    <input type="text" id="errors-search" placeholder="Cerca negli errori..." oninput="renderErrors()">
+    <select id="errors-filter" onchange="renderErrors()">
+      <option value="all">Tutti</option>
+      <option value="verb">Solo verbi</option>
+      <option value="vocab">Solo vocaboli</option>
+    </select>
+    <button class="btn" type="button" onclick="sortErrors()" id="sort-btn">Più recenti prima</button>
+  </div>
+  <div id="errors-list"></div>
+  <div style="margin-top:20px;">
+    <span class="reset-link" onclick="resetErrors()">Azzera tutti gli errori</span>
+  </div>
+</div>
+
+<!-- STATISTICHE -->
+<div class="section" id="sec-stats">
+  <div class="stats-grid">
+    <div class="stat-card"><div class="stat-label">Risposte giuste</div><div class="stat-value" id="st-ok">0</div></div>
+    <div class="stat-card"><div class="stat-label">Risposte sbagliate</div><div class="stat-value" id="st-ko">0</div></div>
+    <div class="stat-card"><div class="stat-label">Totale domande</div><div class="stat-value" id="st-tot">0</div></div>
+    <div class="stat-card"><div class="stat-label">Percentuale</div><div class="stat-value" id="st-pct">—</div></div>
+  </div>
+  <p style="font-size:13px;color:var(--text3);margin-bottom:24px;">Le statistiche vengono salvate automaticamente nel browser.</p>
+  <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
+</div>
+
+<script>
+const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
+
+const RAW_BUILTIN = [
+  {it:"Andare",base:"go",past:"went",part:"gone",type:"verb"},
+  {it:"Avere",base:"have",past:"had",part:"had",type:"verb"},
+  {it:"Diventare",base:"become",past:"became",part:"become",type:"verb"},
+  {it:"Mordere",base:"bite",past:"bit",part:"bitten",type:"verb"},
+  {it:"Soffiare",base:"blow",past:"blew",part:"blown",type:"verb"},
+  {it:"Costruire",base:"build",past:"built",part:"built",type:"verb"},
+  {it:"Bruciare",base:"burn",past:"burnt",part:"burnt",type:"verb"},
+  {it:"Catturare (cogliere)",base:"catch",past:"caught",part:"caught",type:"verb"},
+  {it:"Venire",base:"come",past:"came",part:"come",type:"verb"},
+  {it:"Comprare",base:"buy",past:"bought",part:"bought",type:"verb"},
+  {it:"Costare",base:"cost",past:"cost",part:"cost",type:"verb"},
+  {it:"Tagliare",base:"cut",past:"cut",part:"cut",type:"verb"},
+  {it:"Dimenticare",base:"forget",past:"forgot",part:"forgotten",type:"verb"},
+  {it:"Dire (a qualcuno)",base:"tell",past:"told",part:"told",type:"verb"},
+  {it:"Disegnare",base:"draw",past:"drew",part:"drawn",type:"verb"},
+  {it:"Bere",base:"drink",past:"drank",part:"drunk",type:"verb"},
+  {it:"Essere",base:"be",past:"was",part:"been",type:"verb"},
+  {it:"Cadere",base:"fall",past:"fell",part:"fallen",type:"verb"},
+  {it:"Fare",base:"do",past:"did",part:"done",type:"verb"},
+  {it:"Sentire (provare)",base:"feel",past:"felt",part:"felt",type:"verb"},
+  {it:"Combattere",base:"fight",past:"fought",part:"fought",type:"verb"},
+  {it:"Volare",base:"fly",past:"flew",part:"flown",type:"verb"},
+  {it:"Trovare",base:"find",past:"found",part:"found",type:"verb"},
+  {it:"Ottenere",base:"get",past:"got",part:"got/gotten",type:"verb"},
+  {it:"Dare",base:"give",past:"gave",part:"given",type:"verb"},
+  {it:"Crescere",base:"grow",past:"grew",part:"grown",type:"verb"},
+  {it:"Appendere",base:"hang",past:"hung",part:"hung",type:"verb"},
+  {it:"Sentire (udire)",base:"hear",past:"heard",part:"heard",type:"verb"},
+  {it:"Tenere",base:"hold",past:"held",part:"held",type:"verb"},
+  {it:"Ferire",base:"hurt",past:"hurt",part:"hurt",type:"verb"},
+  {it:"Sapere (conoscere)",base:"know",past:"knew",part:"known",type:"verb"},
+  {it:"Posare, mettere giù",base:"lay",past:"laid",part:"laid",type:"verb"},
+  {it:"Portare",base:"lead",past:"led",part:"led",type:"verb"},
+  {it:"Lasciare, permettere",base:"let",past:"let",part:"let",type:"verb"},
+  {it:"Sdraiarsi",base:"lie",past:"lay",part:"lain",type:"verb"},
+  {it:"Perdere",base:"lose",past:"lost",part:"lost",type:"verb"},
+  {it:"Fare, produrre",base:"make",past:"made",part:"made",type:"verb"},
+  {it:"Significare",base:"mean",past:"meant",part:"meant",type:"verb"},
+  {it:"Incontrare",base:"meet",past:"met",part:"met",type:"verb"},
+  {it:"Pagare",base:"pay",past:"paid",part:"paid",type:"verb"},
+  {it:"Mettere",base:"put",past:"put",part:"put",type:"verb"},
+  {it:"Leggere",base:"read",past:"read",part:"read",type:"verb"},
+  {it:"Correre",base:"run",past:"ran",part:"run",type:"verb"},
+  {it:"Dire",base:"say",past:"said",part:"said",type:"verb"},
+  {it:"Vedere",base:"see",past:"saw",part:"seen",type:"verb"},
+  {it:"Vendere",base:"sell",past:"sold",part:"sold",type:"verb"},
+  {it:"Inviare",base:"send",past:"sent",part:"sent",type:"verb"},
+  {it:"Stabilire, fissare",base:"set",past:"set",part:"set",type:"verb"},
+  {it:"Scuotere",base:"shake",past:"shook",part:"shaken",type:"verb"},
+  {it:"Brillare",base:"shine",past:"shone",part:"shone",type:"verb"},
+  {it:"Mostrare",base:"show",past:"showed",part:"shown",type:"verb"},
+  {it:"Chiudere",base:"shut",past:"shut",part:"shut",type:"verb"},
+  {it:"Cantare",base:"sing",past:"sang",part:"sung",type:"verb"},
+  {it:"Affondare",base:"sink",past:"sank",part:"sunk",type:"verb"},
+  {it:"Sedersi",base:"sit",past:"sat",part:"sat",type:"verb"},
+  {it:"Dormire",base:"sleep",past:"slept",part:"slept",type:"verb"},
+  {it:"Parlare",base:"speak",past:"spoke",part:"spoken",type:"verb"},
+  {it:"Spendere",base:"spend",past:"spent",part:"spent",type:"verb"},
+  {it:"Stare in piedi",base:"stand",past:"stood",part:"stood",type:"verb"},
+  {it:"Rubare",base:"steal",past:"stole",part:"stolen",type:"verb"},
+  {it:"Attaccare",base:"stick",past:"stuck",part:"stuck",type:"verb"},
+  {it:"Nuotare",base:"swim",past:"swam",part:"swum",type:"verb"},
+  {it:"Prendere",base:"take",past:"took",part:"taken",type:"verb"},
+  {it:"Insegnare",base:"teach",past:"taught",part:"taught",type:"verb"},
+  {it:"Strapazzare, dilaniare",base:"tear",past:"tore",part:"torn",type:"verb"},
+  {it:"Pensare",base:"think",past:"thought",part:"thought",type:"verb"},
+  {it:"Lanciare",base:"throw",past:"threw",part:"thrown",type:"verb"},
+  {it:"Capire",base:"understand",past:"understood",part:"understood",type:"verb"},
+  {it:"Indossare",base:"wear",past:"wore",part:"worn",type:"verb"},
+  {it:"Vincere",base:"win",past:"won",part:"won",type:"verb"},
+  {it:"Scrivere",base:"write",past:"wrote",part:"written",type:"verb"},
+  {it:"Giudicare",base:"judge",past:"judged",part:"judged",type:"verb"},
+  {it:"radiatore, bollitore",base:"heater",type:"vocab"},
+  {it:"famiglia stretta",base:"close family",type:"vocab"},
+  {it:"Aspettare, tenersi in contatto",base:"keep in touch",type:"vocab"},
+  {it:"farmacista",base:"pharmacist",type:"vocab"},
+  {it:"risultato",base:"outcome",type:"vocab"},
+  {it:"gusto musicale",base:"taste in music",type:"vocab"},
+  {it:"Abituarsi a",base:"get used to",type:"vocab"},
+  {it:"Indovina un po'",base:"guess what",type:"vocab"},
+  {it:"Aggiustare, fissare",base:"fix",type:"vocab"},
+  {it:"Usare",base:"use",type:"vocab"},
+  {it:"edificio, fabbricato",base:"building",type:"vocab"},
+  {it:"genitore",base:"parent",type:"vocab"},
+  {it:"maniera, percorso, direzione, verso",base:"way",type:"vocab"},
+  {it:"Capire (comprendere)",base:"figure out",type:"vocab"},
+  {it:"Splendere (brillare)",base:"shine",type:"vocab"},
+  {it:"Accordarsi, essere d'accordo",base:"agree",type:"vocab"},
+  {it:"Orario di punta",base:"rush hour",type:"vocab"},
+  {it:"Raggiungere",base:"reach",type:"vocab"},
+  {it:"Dipendere",base:"depend",type:"vocab"},
+  {it:"Scegliere",base:"choose",type:"vocab"},
+  {it:"Attenzione",base:"watch out",type:"vocab"},
+  {it:"Peccato, vergogna",base:"shame",type:"vocab"},
+  {it:"Procedura",base:"procedure",type:"vocab"},
+  {it:"Rappresentativo",base:"representative",type:"vocab"},
+  {it:"Imprevedibile",base:"unpredictable",type:"vocab"},
+  {it:"Spontaneo",base:"spontaneous",type:"vocab"},
+  {it:"Aspirapolvere",base:"vacuum cleaner",type:"vocab"},
+  {it:"Traffico intenso",base:"traffic jam",type:"vocab"},
+  {it:"Esercitazione",base:"workout",type:"vocab"},
+  {it:"Spirito del tempo",base:"zeitgeist",type:"vocab"},
+  {it:"Straniero (luoghi)",base:"foreign",type:"vocab"},
+  {it:"Oltremare",base:"overseas",type:"vocab"},
+  {it:"Padronanza, scioltezza",base:"fluency",type:"vocab"},
+  {it:"Cognizione, sapienza",base:"knowledge",type:"vocab"},
+  {it:"Estraneo",base:"stranger",type:"vocab"},
+  {it:"Straniero (persona)",base:"foreigner",type:"vocab"},
+  {it:"Partecipe, solidale",base:"sympathetic",type:"vocab"},
+  {it:"Organico, personale",base:"staff",type:"vocab"},
+  {it:"Tragitto, percorso",base:"journey",type:"vocab"},
+  {it:"Gita, viaggio",base:"trip",type:"vocab"},
+  {it:"Ricetta medica",base:"prescription",type:"vocab"},
+  {it:"Ricetta culinaria",base:"recipe",type:"vocab"},
+  {it:"Allargare, estendere",base:"broaden",type:"vocab"},
+  {it:"Brivido, tremito",base:"shiver",type:"vocab"},
+];
+
+let RAW = [...RAW_BUILTIN];
+let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
+let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentSpeakBtn = null;
+
+// Carica parole da Google Sheets (se pubblico)
+async function loadFromSheet() {
+  try {
+    const url = `https://docs.google.com/spreadsheets/d/${SHEET_ID}/gviz/tq?tqx=out:csv&sheet=Foglio1`;
+    const res = await fetch(url);
+    if (!res.ok) return;
+    const text = await res.text();
+    const rows = text.trim().split('\n').slice(1); // skip header
+    const extra = [];
+    for (const row of rows) {
+      const cols = row.split(',').map(c => c.replace(/^"|"$/g,'').trim());
+      const it = cols[0]; const base = cols[1]; const past = cols[2]; const part = cols[3];
+      if (!it || !base) continue;
+      const type = past ? 'verb' : 'vocab';
+      // Evita duplicati
+      if (!RAW.find(w => w.it.toLowerCase() === it.toLowerCase())) {
+        extra.push({it, base, past: past||null, part: part||null, type});
+      }
+    }
+    if (extra.length > 0) {
+      RAW = [...RAW_BUILTIN, ...extra];
+      resetQuiz();
+      renderVocabTable();
+    }
+  } catch(e) { /* silenzioso: usa solo dati built-in */ }
+}
+
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+
+function resetQuiz() {
+  const mode = document.getElementById('mode-select').value;
+  const order = document.getElementById('order-select').value;
+  let words = mode==='verbs' ? RAW.filter(w=>w.type==='verb') : mode==='vocab' ? RAW.filter(w=>w.type==='vocab') : RAW;
+  deck = order==='random' ? shuffle(words) : [...words];
+  currentIdx = 0; answered = false;
+  showWord();
+}
+
+// Ricomincia: azzera anche stats
+function doResetQuiz() {
+  stats = {ok:0, ko:0};
+  saveStats();
+  updateNavScore();
+  resetQuiz();
+}
+
+function showWord() {
+  if (currentIdx >= deck.length) { showFinished(); return; }
+  answered = false;
+  const w = deck[currentIdx];
+  const isVerb = w.type==='verb';
+  document.getElementById('q-label').textContent = isVerb ? 'Scrivi le tre forme del verbo' : 'Traduci in inglese';
+  document.getElementById('q-word').textContent = w.it;
+  document.getElementById('q-hint').textContent = isVerb ? 'Base form · Past simple · Past participle' : '';
+  const grid = document.getElementById('fields-grid');
+  grid.className = 'fields-grid ' + (isVerb ? 'three' : 'one');
+  const inputAttrs = 'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text"';
+  grid.innerHTML = isVerb
+    ? `<div class="field-wrap"><div class="field-label">Base form</div><input class="field-input" id="f-base" placeholder="es. go" ${inputAttrs} onkeydown="handleKey(event)"></div>
+       <div class="field-wrap"><div class="field-label">Past simple</div><input class="field-input" id="f-past" placeholder="es. went" ${inputAttrs} onkeydown="handleKey(event)"></div>
+       <div class="field-wrap"><div class="field-label">Past participle</div><input class="field-input" id="f-part" placeholder="es. gone" ${inputAttrs} onkeydown="handleKey(event)"></div>`
+    : `<div class="field-wrap"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." ${inputAttrs} onkeydown="handleKey(event)"></div>`;
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('feedback').className = 'feedback-msg';
+  document.getElementById('correct-reveal').innerHTML = '';
+  document.getElementById('fix-typo-area').innerHTML = '';
+  document.getElementById('check-btn').style.display = 'inline-block';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('skip-btn').style.display = 'inline-block';
+  document.getElementById('q-audio-btn').style.display = 'none';
+  currentAudioText = '';
+  updateProgress();
+  setTimeout(() => { const el = document.getElementById('f-base'); if(el) el.focus(); }, 100);
+}
+
+function norm(s) { return s.trim().toLowerCase(); }
+
+// Controlla risposta accettando alternative separate da /
+function chkMulti(userVal, correct) {
+  const alternatives = correct.split(/[,/]/).map(a => norm(a.trim()));
+  return alternatives.includes(norm(userVal));
+}
+
+function checkAnswer() {
+  if (answered) return;
+  const w = deck[currentIdx];
+  const isVerb = w.type==='verb';
+  let allCorrect = true;
+  const parts = [];
+
+  function chk(id, correct) {
+    const el = document.getElementById(id);
+    if (!el) return;
+    const ok = chkMulti(el.value, correct);
+    el.classList.add(ok ? 'correct' : 'wrong');
+    el.disabled = true;
+    if (!ok) allCorrect = false;
+    parts.push(correct);
+  }
+  chk('f-base', w.base);
+  if (isVerb) { chk('f-past', w.past); chk('f-part', w.part); }
+
+  answered = true;
+  currentAudioText = parts.join(', ');
+  document.getElementById('check-btn').style.display = 'none';
+  document.getElementById('skip-btn').style.display = 'none';
+
+  if (allCorrect) {
+    stats.ok++;
+    document.getElementById('feedback').textContent = '✓ Corretto!';
+    document.getElementById('feedback').className = 'feedback-msg correct';
+    document.getElementById('q-audio-btn').style.display = 'flex';
+    document.getElementById('next-btn').style.display = 'inline-block';
+    saveStats(); updateNavScore();
+    speakCurrent();
+    setTimeout(() => { if(answered) { currentIdx++; showWord(); } }, 2000);
+  } else {
+    stats.ko++;
+    document.getElementById('feedback').textContent = '✗ Sbagliato';
+    document.getElementById('feedback').className = 'feedback-msg wrong';
+    const rev = document.getElementById('correct-reveal');
+    rev.innerHTML = isVerb
+      ? `<div class="correct-answer">Risposta corretta: <strong>${w.base}</strong> · <strong>${w.past}</strong> · <strong>${w.part}</strong></div>`
+      : `<div class="correct-answer">Risposta corretta: <strong>${w.base}</strong></div>`;
+    document.getElementById('q-audio-btn').style.display = 'flex';
+    document.getElementById('next-btn').style.display = 'inline-block';
+
+    // Correzione errore di battitura
+    const fixArea = document.getElementById('fix-typo-area');
+    fixArea.innerHTML = `<div class="fix-typo-wrap">
+      <span class="fix-typo-label">Era un errore di battitura?</span>
+      <button class="btn" onclick="markAsCorrect()" style="font-size:13px;padding:6px 12px;">✓ Segna come corretto</button>
+    </div>`;
+
+    saveError(w);
+    saveStats(); updateNavScore();
+  }
+}
+
+function markAsCorrect() {
+  // Annulla l'errore e segna come corretto
+  stats.ko = Math.max(0, stats.ko - 1);
+  stats.ok++;
+  const w = deck[currentIdx];
+  // Rimuovi dall'errorLog
+  errorLog = errorLog.filter(e => !(e.it === w.it && e.type === w.type));
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  updateErrCount();
+  saveStats(); updateNavScore();
+  document.getElementById('feedback').textContent = '✓ Corretto!';
+  document.getElementById('feedback').className = 'feedback-msg correct';
+  document.getElementById('correct-reveal').innerHTML = '';
+  document.getElementById('fix-typo-area').innerHTML = '';
+}
+
+function handleKey(e) {
+  if (e.key === 'Enter') {
+    e.preventDefault();
+    if (!answered) checkAnswer(); else nextWord();
+  }
+}
+function skipWord() { currentIdx++; showWord(); }
+function nextWord() { currentIdx++; showWord(); }
+
+function showFinished() {
+  document.getElementById('q-label').textContent = 'Hai completato il mazzo!';
+  document.getElementById('q-word').textContent = '🎉';
+  document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate`;
+  document.getElementById('fields-grid').innerHTML = '';
+  document.getElementById('feedback').textContent = '';
+  document.getElementById('correct-reveal').innerHTML = '';
+  document.getElementById('fix-typo-area').innerHTML = '';
+  document.getElementById('check-btn').style.display = 'none';
+  document.getElementById('skip-btn').style.display = 'none';
+  document.getElementById('next-btn').style.display = 'none';
+  document.getElementById('q-audio-btn').style.display = 'none';
+  document.getElementById('progress-bar').style.width = '100%';
+}
+
+function updateProgress() {
+  document.getElementById('progress-bar').style.width = (deck.length ? (currentIdx/deck.length)*100 : 0) + '%';
+}
+
+function speakCurrent() { if(currentAudioText) speakText(currentAudioText, document.getElementById('q-audio-btn')); }
+
+function speakText(text, btn) {
+  window.speechSynthesis.cancel();
+  if(currentSpeakBtn) currentSpeakBtn.classList.remove('playing');
+  const u = new SpeechSynthesisUtterance(text);
+  u.lang='en-US'; u.rate=0.85; u.pitch=0.9;
+  const voices = window.speechSynthesis.getVoices();
+  // Preferisci voce femminile en-US
+  const femaleVoice = voices.find(v => v.lang === 'en-US' && /allison|female|samantha|karen|victoria|moira|fiona|serena|zira|susan|amy|emma|joanna|salli|kimberly|kendra/i.test(v.name))
+    || voices.find(v => v.lang === 'en-GB' && /female|kate|amy/i.test(v.name))
+    || voices.find(v => v.lang.startsWith('en') && /female|samantha|karen/i.test(v.name))
+    || voices.find(v => v.lang === 'en-US')
+    || voices.find(v => v.lang.startsWith('en'));
+  if(femaleVoice) u.voice = femaleVoice;
+  btn.classList.add('playing'); currentSpeakBtn=btn;
+  u.onend=()=>btn.classList.remove('playing');
+  u.onerror=()=>btn.classList.remove('playing');
+  window.speechSynthesis.speak(u);
+}
+
+function renderVocabTable() {
+  const q = document.getElementById('vocab-search').value.toLowerCase();
+  const f = document.getElementById('vocab-filter').value;
+  let words = RAW;
+  if(f==='verbs') words=words.filter(w=>w.type==='verb');
+  if(f==='vocab') words=words.filter(w=>w.type==='vocab');
+  if(q) words=words.filter(w=>w.it.toLowerCase().includes(q)||w.base.toLowerCase().includes(q));
+  document.getElementById('vocab-tbody').innerHTML = words.map(w => {
+    const sp = w.type==='verb' ? `${w.base}, ${w.past}, ${w.part}` : w.base;
+    return `<tr>
+      <td><span class="badge ${w.type==='verb'?'badge-verb':'badge-vocab'}">${w.type==='verb'?'verbo':'vocab'}</span></td>
+      <td class="it-cell">${w.it}</td>
+      <td class="en-cell">${w.base}</td>
+      <td class="past-cell">${w.past||'—'}</td>
+      <td class="past-cell">${w.part||'—'}</td>
+      <td><button class="tbl-audio" onclick="speakText('${sp.replace(/'/g,"\\'")}',this)" title="Ascolta">
+        <svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg>
+      </button></td>
+    </tr>`;
+  }).join('');
+}
+
+function saveStats() { localStorage.setItem('ep_stats2', JSON.stringify(stats)); }
+
+// ERRORS
+let errorLog = JSON.parse(localStorage.getItem('ep_errors') || '[]');
+let errorsSortDesc = true;
+
+function saveError(w) {
+  const key = w.it + '|' + w.type;
+  const existing = errorLog.find(e => e.key === key);
+  if (existing) {
+    existing.count++;
+    existing.lastDate = new Date().toLocaleDateString('it-IT');
+  } else {
+    errorLog.push({
+      key, it: w.it, base: w.base,
+      past: w.past || null, part: w.part || null,
+      type: w.type, count: 1,
+      lastDate: new Date().toLocaleDateString('it-IT')
+    });
+  }
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  updateErrCount();
+}
+
+function updateErrCount() {
+  const el = document.getElementById('nav-err-count');
+  el.textContent = errorLog.length > 0 ? `(${errorLog.length})` : '';
+}
+
+function sortErrors() {
+  errorsSortDesc = !errorsSortDesc;
+  document.getElementById('sort-btn').textContent = errorsSortDesc ? 'Più recenti prima' : 'Più frequenti prima';
+  renderErrors();
+}
+
+function renderErrors() {
+  const q = document.getElementById('errors-search').value.toLowerCase();
+  const f = document.getElementById('errors-filter').value;
+  let list = [...errorLog];
+  if (f === 'verb') list = list.filter(e => e.type === 'verb');
+  if (f === 'vocab') list = list.filter(e => e.type === 'vocab');
+  if (q) list = list.filter(e => e.it.toLowerCase().includes(q) || e.base.toLowerCase().includes(q));
+  list.sort((a, b) => errorsSortDesc ? b.count - a.count : a.count - b.count);
+
+  const container = document.getElementById('errors-list');
+  if (list.length === 0) {
+    container.innerHTML = `<div class="empty-errors"><span>🎉</span>${q || f !== 'all' ? 'Nessun risultato trovato.' : 'Nessun errore ancora — ottimo lavoro!'}</div>`;
+    return;
+  }
+  container.innerHTML = list.map(e => {
+    const sp = e.type === 'verb' ? `${e.base}, ${e.past}, ${e.part}` : e.base;
+    const spSafe = sp.replace(/'/g, "\\'");
+    return `<div class="error-card">
+      <div>
+        <div class="error-it">${e.it}</div>
+        <div class="error-forms">${e.type === 'verb' ? 'verbo' : 'vocabolo'}</div>
+      </div>
+      <div style="flex:1">
+        <div class="error-en">${e.base}</div>
+        ${e.type === 'verb' ? `<div class="error-forms">${e.past} · ${e.part}</div>` : ''}
+      </div>
+      <button class="tbl-audio" onclick="speakText('${spSafe}', this)" title="Ascolta">
+        <svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg>
+      </button>
+      <span class="error-count">${e.count}× sbagliato</span>
+      <span class="error-date">${e.lastDate}</span>
+    </div>`;
+  }).join('');
+}
+
+function resetErrors() {
+  if (!confirm('Eliminare tutti gli errori salvati?')) return;
+  errorLog = [];
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  updateErrCount();
+  renderErrors();
+}
+function updateNavScore() {
+  document.getElementById('nav-ok').textContent = stats.ok;
+  document.getElementById('nav-ko').textContent = stats.ko;
+  document.getElementById('st-ok').textContent = stats.ok;
+  document.getElementById('st-ko').textContent = stats.ko;
+  const tot = stats.ok+stats.ko;
+  document.getElementById('st-tot').textContent = tot;
+  document.getElementById('st-pct').textContent = tot ? Math.round(stats.ok/tot*100)+'%' : '—';
+}
+function resetStats() {
+  if(!confirm('Azzerare le statistiche?')) return;
+  stats={ok:0,ko:0}; saveStats(); updateNavScore();
+}
+function showSection(name, btn) {
+  document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
+  document.getElementById('sec-'+name).classList.add('active');
+  btn.classList.add('active');
+  if(name==='vocab') renderVocabTable();
+  if(name==='errors') renderErrors();
+}
+
+// Init
+window.speechSynthesis.onvoiceschanged = () => {};
+updateNavScore();
+updateErrCount();
+resetQuiz();
+loadFromSheet();
+</script>
+</body>
+</html>
