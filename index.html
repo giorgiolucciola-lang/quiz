@@ -243,13 +243,7 @@
   .app-footer a:hover { color: var(--accent); }
 
 
-  .source-badge { 
-    font-size: 10px; font-weight: 600; letter-spacing: 0.06em;
-    padding: 2px 6px; border-radius: 4px; margin-left: 6px;
-    vertical-align: middle;
-  }
-  .source-sheet { background: #fff3e0; color: #e65100; border: 1px solid #ffcc80; }
-  .source-builtin { background: #e8eaf6; color: #3949ab; border: 1px solid #9fa8da; }
+
 
   @media (max-width: 560px) {
     .fields-grid.three { grid-template-columns: 1fr; }
@@ -292,7 +286,7 @@
   <div class="card" id="quiz-card">
     <div class="card-label" id="q-label">Traduci in inglese</div>
     <div class="card-word-row" id="word-row">
-      <div class="card-word" id="q-word">—</div><span id="source-badge" class="source-badge"></span>
+      <div class="card-word" id="q-word">—</div>
       <button class="audio-btn" id="q-audio-btn" onclick="speakCurrent()" title="Ascolta risposta" style="display:none">
         <svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg>
       </button>
@@ -362,123 +356,7 @@
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
 
-const RAW_BUILTIN = [
-  {it:"Andare",base:"go",past:"went",part:"gone",type:"verb",source:"builtin"},
-  {it:"Avere",base:"have",past:"had",part:"had",type:"verb",source:"builtin"},
-  {it:"Diventare",base:"become",past:"became",part:"become",type:"verb",source:"builtin"},
-  {it:"Mordere",base:"bite",past:"bit",part:"bitten",type:"verb",source:"builtin"},
-  {it:"Soffiare",base:"blow",past:"blew",part:"blown",type:"verb",source:"builtin"},
-  {it:"Costruire",base:"build",past:"built",part:"built",type:"verb",source:"builtin"},
-  {it:"Bruciare",base:"burn",past:"burnt",part:"burnt",type:"verb",source:"builtin"},
-  {it:"Catturare (cogliere)",base:"catch",past:"caught",part:"caught",type:"verb",source:"builtin"},
-  {it:"Venire",base:"come",past:"came",part:"come",type:"verb",source:"builtin"},
-  {it:"Comprare",base:"buy",past:"bought",part:"bought",type:"verb",source:"builtin"},
-  {it:"Costare",base:"cost",past:"cost",part:"cost",type:"verb",source:"builtin"},
-  {it:"Tagliare",base:"cut",past:"cut",part:"cut",type:"verb",source:"builtin"},
-  {it:"Dimenticare",base:"forget",past:"forgot",part:"forgotten",type:"verb",source:"builtin"},
-  {it:"Dire (a qualcuno)",base:"tell",past:"told",part:"told",type:"verb",source:"builtin"},
-  {it:"Disegnare",base:"draw",past:"drew",part:"drawn",type:"verb",source:"builtin"},
-  {it:"Bere",base:"drink",past:"drank",part:"drunk",type:"verb",source:"builtin"},
-  {it:"Essere",base:"be",past:"was",part:"been",type:"verb",source:"builtin"},
-  {it:"Cadere",base:"fall",past:"fell",part:"fallen",type:"verb",source:"builtin"},
-  {it:"Fare",base:"do",past:"did",part:"done",type:"verb",source:"builtin"},
-  {it:"Sentire (provare)",base:"feel",past:"felt",part:"felt",type:"verb",source:"builtin"},
-  {it:"Combattere",base:"fight",past:"fought",part:"fought",type:"verb",source:"builtin"},
-  {it:"Volare",base:"fly",past:"flew",part:"flown",type:"verb",source:"builtin"},
-  {it:"Trovare",base:"find",past:"found",part:"found",type:"verb",source:"builtin"},
-  {it:"Ottenere",base:"get",past:"got",part:"got/gotten",type:"verb",source:"builtin"},
-  {it:"Dare",base:"give",past:"gave",part:"given",type:"verb",source:"builtin"},
-  {it:"Crescere",base:"grow",past:"grew",part:"grown",type:"verb",source:"builtin"},
-  {it:"Appendere",base:"hang",past:"hung",part:"hung",type:"verb",source:"builtin"},
-  {it:"Sentire (udire)",base:"hear",past:"heard",part:"heard",type:"verb",source:"builtin"},
-  {it:"Tenere",base:"hold",past:"held",part:"held",type:"verb",source:"builtin"},
-  {it:"Ferire",base:"hurt",past:"hurt",part:"hurt",type:"verb",source:"builtin"},
-  {it:"Sapere (conoscere)",base:"know",past:"knew",part:"known",type:"verb",source:"builtin"},
-  {it:"Posare, mettere giù",base:"lay",past:"laid",part:"laid",type:"verb",source:"builtin"},
-  {it:"Portare",base:"lead",past:"led",part:"led",type:"verb",source:"builtin"},
-  {it:"Lasciare, permettere",base:"let",past:"let",part:"let",type:"verb",source:"builtin"},
-  {it:"Sdraiarsi",base:"lie",past:"lay",part:"lain",type:"verb",source:"builtin"},
-  {it:"Perdere",base:"lose",past:"lost",part:"lost",type:"verb",source:"builtin"},
-  {it:"Fare, produrre",base:"make",past:"made",part:"made",type:"verb",source:"builtin"},
-  {it:"Significare",base:"mean",past:"meant",part:"meant",type:"verb",source:"builtin"},
-  {it:"Incontrare",base:"meet",past:"met",part:"met",type:"verb",source:"builtin"},
-  {it:"Pagare",base:"pay",past:"paid",part:"paid",type:"verb",source:"builtin"},
-  {it:"Mettere",base:"put",past:"put",part:"put",type:"verb",source:"builtin"},
-  {it:"Leggere",base:"read",past:"read",part:"read",type:"verb",source:"builtin"},
-  {it:"Correre",base:"run",past:"ran",part:"run",type:"verb",source:"builtin"},
-  {it:"Dire",base:"say",past:"said",part:"said",type:"verb",source:"builtin"},
-  {it:"Vedere",base:"see",past:"saw",part:"seen",type:"verb",source:"builtin"},
-  {it:"Vendere",base:"sell",past:"sold",part:"sold",type:"verb",source:"builtin"},
-  {it:"Inviare",base:"send",past:"sent",part:"sent",type:"verb",source:"builtin"},
-  {it:"Stabilire, fissare",base:"set",past:"set",part:"set",type:"verb",source:"builtin"},
-  {it:"Scuotere",base:"shake",past:"shook",part:"shaken",type:"verb",source:"builtin"},
-  {it:"Brillare",base:"shine",past:"shone",part:"shone",type:"verb",source:"builtin"},
-  {it:"Mostrare",base:"show",past:"showed",part:"shown",type:"verb",source:"builtin"},
-  {it:"Chiudere",base:"close",past:"closed",part:"closed",type:"verb",source:"builtin"},
-  {it:"Cantare",base:"sing",past:"sang",part:"sung",type:"verb",source:"builtin"},
-  {it:"Affondare",base:"sink",past:"sank",part:"sunk",type:"verb",source:"builtin"},
-  {it:"Sedersi",base:"sit",past:"sat",part:"sat",type:"verb",source:"builtin"},
-  {it:"Dormire",base:"sleep",past:"slept",part:"slept",type:"verb",source:"builtin"},
-  {it:"Parlare",base:"speak",past:"spoke",part:"spoken",type:"verb",source:"builtin"},
-  {it:"Spendere",base:"spend",past:"spent",part:"spent",type:"verb",source:"builtin"},
-  {it:"Stare in piedi",base:"stand",past:"stood",part:"stood",type:"verb",source:"builtin"},
-  {it:"Rubare",base:"steal",past:"stole",part:"stolen",type:"verb",source:"builtin"},
-  {it:"Attaccare",base:"stick",past:"stuck",part:"stuck",type:"verb",source:"builtin"},
-  {it:"Nuotare",base:"swim",past:"swam",part:"swum",type:"verb",source:"builtin"},
-  {it:"Prendere",base:"take",past:"took",part:"taken",type:"verb",source:"builtin"},
-  {it:"Insegnare",base:"teach",past:"taught",part:"taught",type:"verb",source:"builtin"},
-  {it:"Strapazzare, dilaniare",base:"tear",past:"tore",part:"torn",type:"verb",source:"builtin"},
-  {it:"Pensare",base:"think",past:"thought",part:"thought",type:"verb",source:"builtin"},
-  {it:"Lanciare",base:"throw",past:"threw",part:"thrown",type:"verb",source:"builtin"},
-  {it:"Capire",base:"understand",past:"understood",part:"understood",type:"verb",source:"builtin"},
-  {it:"Indossare",base:"wear",past:"wore",part:"worn",type:"verb",source:"builtin"},
-  {it:"Vincere",base:"win",past:"won",part:"won",type:"verb",source:"builtin"},
-  {it:"Scrivere",base:"write",past:"wrote",part:"written",type:"verb",source:"builtin"},
-  {it:"radiatore, bollitore",base:"heater",type:"vocab",source:"builtin"},
-  {it:"famiglia stretta",base:"close family",type:"vocab",source:"builtin"},
-  {it:"Aspettare, tenersi in contatto",base:"keep in touch",type:"vocab",source:"builtin"},
-  {it:"farmacista",base:"pharmacist",type:"vocab",source:"builtin"},
-  {it:"risultato",base:"outcome",type:"vocab",source:"builtin"},
-  {it:"gusto musicale",base:"taste in music",type:"vocab",source:"builtin"},
-  {it:"Abituarsi a",base:"get used to",type:"vocab",source:"builtin"},
-  {it:"Indovina un po'",base:"guess what",type:"vocab",source:"builtin"},
-  {it:"Aggiustare, fissare",base:"fix",type:"vocab",source:"builtin"},
-  {it:"Usare",base:"use",type:"vocab",source:"builtin"},
-  {it:"edificio, fabbricato",base:"building",type:"vocab",source:"builtin"},
-  {it:"genitore",base:"parent",type:"vocab",source:"builtin"},
-  {it:"maniera, percorso, direzione, verso",base:"way",type:"vocab",source:"builtin"},
-  {it:"Capire (comprendere)",base:"figure out",type:"vocab",source:"builtin"},
-  {it:"Splendere (brillare)",base:"shine",type:"vocab",source:"builtin"},
-  {it:"Accordarsi, essere d'accordo",base:"agree",type:"vocab",source:"builtin"},
-  {it:"Orario di punta",base:"rush hour",type:"vocab",source:"builtin"},
-  {it:"Raggiungere",base:"reach",type:"vocab",source:"builtin"},
-  {it:"Dipendere",base:"depend",type:"vocab",source:"builtin"},
-  {it:"Scegliere",base:"choose",type:"vocab",source:"builtin"},
-  {it:"Attenzione",base:"watch out",type:"vocab",source:"builtin"},
-  {it:"Peccato, vergogna",base:"shame",type:"vocab",source:"builtin"},
-  {it:"Procedura",base:"procedure",type:"vocab",source:"builtin"},
-  {it:"Rappresentativo",base:"representative",type:"vocab",source:"builtin"},
-  {it:"Imprevedibile",base:"unpredictable",type:"vocab",source:"builtin"},
-  {it:"Spontaneo",base:"spontaneous",type:"vocab",source:"builtin"},
-  {it:"Aspirapolvere",base:"vacuum cleaner",type:"vocab",source:"builtin"},
-  {it:"Traffico intenso",base:"traffic jam",type:"vocab",source:"builtin"},
-  {it:"Esercitazione",base:"workout",type:"vocab",source:"builtin"},
-  {it:"Spirito del tempo",base:"zeitgeist",type:"vocab",source:"builtin"},
-  {it:"Straniero (luoghi)",base:"foreign",type:"vocab",source:"builtin"},
-  {it:"Oltremare",base:"overseas",type:"vocab",source:"builtin"},
-  {it:"Padronanza, scioltezza",base:"fluency",type:"vocab",source:"builtin"},
-  {it:"Cognizione, sapienza",base:"knowledge",type:"vocab",source:"builtin"},
-  {it:"Estraneo",base:"stranger",type:"vocab",source:"builtin"},
-  {it:"Straniero (persona)",base:"foreigner",type:"vocab",source:"builtin"},
-  {it:"Partecipe, solidale",base:"sympathetic",type:"vocab",source:"builtin"},
-  {it:"Organico, personale",base:"staff",type:"vocab",source:"builtin"},
-  {it:"Tragitto, percorso",base:"journey",type:"vocab",source:"builtin"},
-  {it:"Gita, viaggio",base:"trip",type:"vocab",source:"builtin"},
-  {it:"Ricetta medica",base:"prescription",type:"vocab",source:"builtin"},
-  {it:"Ricetta culinaria",base:"recipe",type:"vocab",source:"builtin"},
-  {it:"Allargare, estendere",base:"broaden",type:"vocab",source:"builtin"},
-  {it:"Brivido, tremito",base:"shiver",type:"vocab",source:"builtin"},
-];
+const RAW_BUILTIN = []; // Tutti i termini provengono dal Google Sheet
 
 let RAW = [...RAW_BUILTIN];
 let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
@@ -500,7 +378,7 @@ async function loadFromSheet() {
       const type = past ? 'verb' : 'vocab';
       // Evita duplicati
       if (!RAW.find(w => w.it.toLowerCase() === it.toLowerCase())) {
-        extra.push({it, base, past: past||null, part: part||null, type, source:"sheet"});
+        extra.push({it, base, past: past||null, part: part||null, type});
       }
     }
     if (extra.length > 0) {
@@ -541,9 +419,7 @@ function showWord() {
   const isVerb = w.type==='verb';
   document.getElementById('q-label').textContent = isVerb ? 'Scrivi le tre forme del verbo' : 'Traduci in inglese';
   document.getElementById('q-word').textContent = w.it;
-  const badge = document.getElementById('source-badge');
-  badge.className = w.source === 'sheet' ? 'source-badge source-sheet' : 'source-badge source-builtin';
-  badge.textContent = w.source === 'sheet' ? 'Sheet' : 'Built-in';
+
   document.getElementById('q-hint').textContent = isVerb ? 'Base form · Past simple · Past participle' : '';
   const grid = document.getElementById('fields-grid');
   grid.className = 'fields-grid ' + (isVerb ? 'three' : 'one');
