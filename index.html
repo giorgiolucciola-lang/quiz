@@ -388,7 +388,8 @@ async function loadFromSheet() {
     const extra = [];
     for (const row of rows) {
       const cols = parseCSVRow(row);
-      const it = cols[0]; const base = cols[5]; const past = cols[6]; const part = cols[7];
+      const clean = c => c.replace(/^"|"$/g,'').trim();
+      const it = clean(cols[0]); const base = clean(cols[5]); const past = clean(cols[6]); const part = clean(cols[7]);
       if (!it || !base) continue;
       const type = (past && past.trim()) ? 'verb' : 'vocab';
       if (!RAW.find(w => w.it.toLowerCase() === it.toLowerCase())) {
