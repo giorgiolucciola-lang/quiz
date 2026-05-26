@@ -373,9 +373,9 @@ async function loadFromSheet() {
     const extra = [];
     for (const row of rows) {
       const cols = row.split(',').map(c => c.replace(/^"|"$/g,'').trim());
-      const it = cols[0]; const base = cols[1]; const past = cols[2]; const part = cols[3];
+      const it = cols[0]; const base = cols[5]; const past = cols[6]; const part = cols[7];
       if (!it || !base) continue;
-      const type = past ? 'verb' : 'vocab';
+      const type = (past && past.trim()) ? 'verb' : 'vocab';
       // Evita duplicati
       if (!RAW.find(w => w.it.toLowerCase() === it.toLowerCase())) {
         extra.push({it, base, past: past||null, part: part||null, type});
