@@ -369,14 +369,28 @@ async function loadFromSheet() {
     const res = await fetch(url);
     if (!res.ok) return;
     const text = await res.text();
+
+    // Parser CSV corretto che gestisce celle con virgole tra virgolette
+    function parseCSVRow(row) {
+      const cols = [];
+      let cur = '', inQ = false;
+      for (let i = 0; i < row.length; i++) {
+        const c = row[i];
+        if (c === '"') { inQ = !inQ; }
+        else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
+        else { cur += c; }
+      }
+      cols.push(cur.trim());
+      return cols;
+    }
+
     const rows = text.trim().split('\n').slice(1); // skip header
     const extra = [];
     for (const row of rows) {
-      const cols = row.split(',').map(c => c.replace(/^"|"$/g,'').trim());
+      const cols = parseCSVRow(row);
       const it = cols[0]; const base = cols[5]; const past = cols[6]; const part = cols[7];
       if (!it || !base) continue;
       const type = (past && past.trim()) ? 'verb' : 'vocab';
-      // Evita duplicati
       if (!RAW.find(w => w.it.toLowerCase() === it.toLowerCase())) {
         extra.push({it, base, past: past||null, part: part||null, type});
       }
