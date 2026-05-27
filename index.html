@@ -348,7 +348,8 @@
     <button class="btn" type="button" onclick="sortErrors()" id="sort-btn">Più recenti prima</button>
   </div>
   <div id="errors-list"></div>
-  <div style="margin-top:20px;">
+  <div style="margin-top:20px; display:flex; gap:20px; flex-wrap:wrap; align-items:center;">
+    <span class="reset-link" onclick="deleteOldErrors()">Elimina errori più vecchi di 10 giorni</span>
     <span class="reset-link" onclick="resetErrors()">Azzera tutti gli errori</span>
   </div>
 </div>
@@ -688,6 +689,25 @@ function renderErrors() {
       <span class="error-date">${e.lastDate}</span>
     </div>`;
   }).join('');
+}
+
+function deleteOldErrors() {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 10);
+  const before = errorLog.length;
+  errorLog = errorLog.filter(e => {
+    if (!e.lastDate) return false;
+    const parts = e.lastDate.split('/');
+    if (parts.length !== 3) return false;
+    const d = new Date(parts[2], parts[1]-1, parts[0]);
+    return d >= cutoff;
+  });
+  const removed = before - errorLog.length;
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  updateErrCount();
+  renderErrors();
+  if (removed > 0) alert(`Eliminati ${removed} errori più vecchi di 10 giorni.`);
+  else alert('Nessun errore più vecchio di 10 giorni.');
 }
 
 function resetErrors() {
