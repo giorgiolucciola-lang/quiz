@@ -274,6 +274,7 @@
     <button class="tab-btn" onclick="showSection('errors', this)">I miei errori <span id="nav-err-count"></span></button>
     <button class="tab-btn" onclick="showSection('stats', this)">Statistiche</button>
   </div>
+  <div id="word-count" style="font-size:12px;color:var(--text3);font-family:monospace;">caricamento...</div>
   <div class="score-pill">
     <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
     <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
@@ -397,20 +398,23 @@ async function loadFromSheet() {
       return cols;
     }
 
-    const rows = text.trim().split('\n').slice(1); // skip header
-    const extra = [];
+    const rows = text.trim().split('\n').slice(2); // skip 2 header rows
+    const loaded = [];
+    const seen = new Set();
     for (const row of rows) {
       const cols = parseCSVRow(row);
-      const clean = c => c.replace(/^"|"$/g,'').trim();
+      const clean = c => (c || '').replace(/^"|"$/g,'').trim();
       const it = clean(cols[0]); const base = clean(cols[5]); const past = clean(cols[6]); const part = clean(cols[7]);
       if (!it || !base) continue;
+      const key = it.toLowerCase();
+      if (seen.has(key)) continue;
+      seen.add(key);
       const type = (past && past.trim()) ? 'verb' : 'vocab';
-      if (!RAW.find(w => w.it.toLowerCase() === it.toLowerCase())) {
-        extra.push({it, base, past: past||null, part: part||null, type});
-      }
+      loaded.push({it, base, past: past||null, part: part||null, type});
     }
-    if (extra.length > 0) {
-      RAW = [...RAW_BUILTIN, ...extra];
+    if (loaded.length > 0) {
+      RAW = loaded;
+      document.getElementById('word-count').textContent = loaded.length + ' parole caricate';
       resetQuiz();
       renderVocabTable();
     }
