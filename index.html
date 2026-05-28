@@ -702,34 +702,55 @@ function renderErrors() {
   if (f === 'verb') list = list.filter(e => e.type === 'verb');
   if (f === 'vocab') list = list.filter(e => e.type === 'vocab');
   if (q) list = list.filter(e => e.it.toLowerCase().includes(q) || e.base.toLowerCase().includes(q));
-  list.sort((a, b) => errorsSortDesc ? b.count - a.count : a.count - b.count);
 
   const container = document.getElementById('errors-list');
   if (list.length === 0) {
     container.innerHTML = `<div class="empty-errors"><span>🎉</span>${q || f !== 'all' ? 'Nessun risultato trovato.' : 'Nessun errore ancora — ottimo lavoro!'}</div>`;
+    document.getElementById('select-all-wrap').style.display = 'none';
+    document.getElementById('practice-selected-btn').style.display = 'none';
     return;
   }
-  container.innerHTML = list.map(e => {
-    const sp = e.type === 'verb' ? `${e.base}, ${e.past}, ${e.part}` : e.base;
-    const spSafe = sp.replace(/'/g, "\\'");
-    return `<div class="error-card">
-      <div>
-        <div class="error-it">${e.it}</div>
-        <div class="error-forms">${e.type === 'verb' ? 'verbo' : 'vocabolo'}</div>
-      </div>
-      <div style="flex:1">
-        <div class="error-en">${e.base}</div>
-        ${e.type === 'verb' ? `<div class="error-forms">${e.past} · ${e.part}</div>` : ''}
-      </div>
-      <button class="tbl-audio" onclick="speakText('${spSafe}', this)" title="Ascolta">
-        <svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg>
-      </button>
-      <span class="error-count">${e.count}× sbagliato</span>
-      <span class="error-date">${e.lastDate}</span>
-    </div>`;
-  }).join('');
-}
 
+  const today = new Date();
+  const groups = {};
+  const labels = [];
+  for (let i = 0; i < 10; i++) {
+    const d = new Date(today);
+    d.setDate(today.getDate() - i);
+    const key = d.toLocaleDateString('it-IT');
+    const label = i === 0 ? 'Oggi' : i === 1 ? 'Ieri' : d.toLocaleDateString('it-IT', {weekday:'long', day:'numeric', month:'long'});
+    groups[key] = { label, items: [] };
+    labels.push(key);
+  }
+  groups['vecchi'] = { label: 'Più vecchi', items: [] };
+  for (const e of list) {
+    if (groups[e.lastDate]) groups[e.lastDate].items.push(e);
+    else groups['vecchi'].items.push(e);
+  }
+
+  let html = '';
+  for (const key of [...labels, 'vecchi']) {
+    const g = groups[key];
+    if (!g.items.length) continue;
+    g.items.sort((a, b) => b.count - a.count);
+    html += `<div class="errors-day-group"><div class="errors-day-header">${g.label}<span class="errors-day-count">${g.items.length} ${g.items.length === 1 ? 'errore' : 'errori'}</span></div>`;
+    for (const e of g.items) {
+      const sp = e.type === 'verb' ? `${e.base}, ${e.past}, ${e.part}` : e.base;
+      const spSafe = sp.replace(/'/g, "\'");
+      html += `<div class="error-card">
+        <input type="checkbox" class="error-check" data-key="${e.key}" onchange="updatePracticeBtn()">
+        <div><div class="error-it">${e.it}</div><div class="error-forms">${e.type === 'verb' ? 'verbo' : 'vocabolo'}</div></div>
+        <div style="flex:1"><div class="error-en">${e.base}</div>${e.type === 'verb' ? `<div class="error-forms">${e.past} · ${e.part}</div>` : ''}</div>
+        <button class="tbl-audio" onclick="speakText('${spSafe}', this)" title="Ascolta"><svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg></button>
+        <span class="error-count">${e.count}× sbagliato</span>
+      </div>`;
+    }
+    html += '</div>';
+  }
+  container.innerHTML = html;
+  document.getElementById('select-all-wrap').style.display = 'flex';
+  updatePracticeBtn();
+}
 function deleteOldErrors() {
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - 10);
