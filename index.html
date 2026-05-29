@@ -595,11 +595,16 @@ function handleKey(e) {
     if (!answered) checkAnswer(); else nextWord();
   }
 }
-function skipWord() { currentIdx++; showWord(); }
+function skipWord() {
+  const w = deck[currentIdx];
+  if (w) saveSkipped(w);
+  currentIdx++;
+  showWord();
+}
 function nextWord() { currentIdx++; showWord(); }
 
 function showFinished() {
-  document.getElementById('q-label').textContent = 'Hai completato il mazzo!';
+  document.getElementById('q-label').textContent = 'Hai completato tutti i termini!';
   document.getElementById('q-word').textContent = '🎉';
   document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate`;
   document.getElementById('fields-grid').innerHTML = '';
@@ -665,6 +670,28 @@ function saveStats() { localStorage.setItem('ep_stats2', JSON.stringify(stats));
 // ERRORS
 let errorLog = JSON.parse(localStorage.getItem('ep_errors') || '[]');
 let errorsSortDesc = true;
+
+function saveSkipped(w) {
+  const key = w.it + '|' + w.type;
+  const existing = errorLog.find(e => e.key === key);
+  if (existing) return; // already in errors, don't add as skipped
+  const skipped = errorLog.find(e => e.key === key + '|skipped');
+  if (skipped) {
+    skipped.count++;
+    skipped.lastDate = new Date().toLocaleDateString('it-IT');
+  } else {
+    errorLog.push({
+      key: key + '|skipped',
+      it: w.it, base: w.base,
+      past: w.past || null, part: w.part || null,
+      type: w.type, count: 1,
+      skipped: true,
+      lastDate: new Date().toLocaleDateString('it-IT')
+    });
+  }
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  updateErrCount();
+}
 
 function saveError(w) {
   const key = w.it + '|' + w.type;
@@ -742,7 +769,7 @@ function renderErrors() {
         <div><div class="error-it">${e.it}</div><div class="error-forms">${e.type === 'verb' ? 'verbo' : 'vocabolo'}</div></div>
         <div style="flex:1"><div class="error-en">${e.base}</div>${e.type === 'verb' ? `<div class="error-forms">${e.past} · ${e.part}</div>` : ''}</div>
         <button class="tbl-audio" onclick="speakText('${spSafe}', this)" title="Ascolta"><svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg></button>
-        <span class="error-count">${e.count}× sbagliato</span>
+        ${e.skipped ? '<span class="error-count" style="background:var(--accent-light);color:var(--accent);border:1px solid var(--accent-dim)">Saltato</span>' : '<span class="error-count">'+e.count+'× sbagliato</span>'}
       </div>`;
     }
     html += '</div>';
