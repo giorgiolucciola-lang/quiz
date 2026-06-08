@@ -62,7 +62,6 @@
   .dot { width: 7px; height: 7px; border-radius: 50%; }
   .dot-g { background: var(--green); }
   .dot-r { background: var(--red); }
-  .dot-y { background: #c8a020; }
 
   .section { display: none; padding: 24px; max-width: 760px; margin: 0 auto; }
   .section.active { display: block; }
@@ -89,32 +88,6 @@
     border-color: var(--accent); font-weight: 600;
   }
   .btn.primary:hover { background: #235a3f; border-color: #235a3f; }
-
-  /* Progress info row */
-  .progress-info {
-    display: flex; justify-content: space-between; align-items: center;
-    font-size: 13px; color: var(--text2); margin-bottom: 8px; flex-wrap: wrap; gap: 6px;
-  }
-  .progress-counter { font-weight: 500; }
-  .progress-counter strong { color: var(--accent); }
-  .accuracy-pill {
-    font-size: 12px; font-weight: 600; padding: 3px 10px;
-    border-radius: 20px; transition: background 0.4s, color 0.4s;
-  }
-  .accuracy-pill.great { background: #eaf5ee; color: #2a7a4a; border: 1px solid #b0d8be; }
-  .accuracy-pill.good  { background: #fef9e7; color: #b7770d; border: 1px solid #f0d080; }
-  .accuracy-pill.poor  { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
-  .accuracy-pill.none  { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
-
-  /* Accuracy strip (colored band) */
-  .accuracy-strip-wrap {
-    height: 6px; background: var(--border); border-radius: 3px; margin-bottom: 6px;
-    overflow: hidden;
-  }
-  .accuracy-strip-fill {
-    height: 100%; border-radius: 3px;
-    transition: width 0.4s ease, background 0.4s ease;
-  }
 
   .progress-wrap { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 24px; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
@@ -314,7 +287,6 @@
   <div class="score-pill">
     <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
     <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
-    <span><span class="dot dot-y"></span><span id="nav-sk">0</span></span>
   </div>
 </nav>
 
@@ -333,11 +305,10 @@
     </select>
     <button class="btn" onclick="doResetQuiz()">Ricomincia</button>
   </div>
-  <div class="progress-info">
-    <span class="progress-counter" id="progress-counter">—</span>
-    <span class="accuracy-pill none" id="accuracy-pill">—</span>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <span id="progress-label" style="font-size:13px;color:var(--text3);font-family:monospace;"></span>
+    <span id="progress-pct" style="font-size:13px;color:var(--accent);font-weight:600;"></span>
   </div>
-  <div class="accuracy-strip-wrap"><div class="accuracy-strip-fill" id="accuracy-strip" style="width:0%"></div></div>
   <div class="progress-wrap"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
   <div class="card" id="quiz-card">
     <div class="card-label" id="q-label">Traduci in inglese</div>
@@ -420,8 +391,9 @@ const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazion
 const RAW_BUILTIN = []; // Tutti i termini provengono dal Google Sheet
 
 let RAW = [...RAW_BUILTIN];
-let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0,"sk":0}');
-if (stats.sk === undefined) stats.sk = 0; // retrocompatibilità
+let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
+let _sessionBase = stats.ok + stats.ko;   // totale all'avvio della sessione
+let _sessionOkBase = stats.ok;            // ok all'avvio della sessione
 let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentSpeakBtn = null;
 
 // Carica parole da Google Sheets (se pubblico)
@@ -497,12 +469,16 @@ function resetQuiz() {
   let words = mode==='verbs' ? RAW.filter(w=>w.type==='verb') : mode==='vocab' ? RAW.filter(w=>w.type==='vocab') : RAW;
   deck = order==='random' ? shuffle(words) : [...words];
   currentIdx = 0; answered = false;
+  _sessionBase = stats.ok + stats.ko;
+  _sessionOkBase = stats.ok;
   showWord();
 }
 
 // Ricomincia: azzera stats e forza ordine casuale
 function doResetQuiz() {
-  stats = {ok:0, ko:0, sk:0};
+  stats = {ok:0, ko:0};
+  _sessionBase = 0;
+  _sessionOkBase = 0;
   saveStats();
   updateNavScore();
   // Forza ordine casuale indipendentemente dal selettore
@@ -581,7 +557,7 @@ function checkAnswer() {
     document.getElementById('feedback').className = 'feedback-msg correct';
     document.getElementById('q-audio-btn').style.display = 'flex';
     document.getElementById('next-btn').style.display = 'inline-block';
-    saveStats(); updateNavScore(); updateProgress();
+    saveStats(); updateNavScore();
     speakCurrent();
     setTimeout(() => { if(answered) { currentIdx++; showWord(); } }, 2000);
   } else {
@@ -603,7 +579,7 @@ function checkAnswer() {
     </div>`;
 
     saveError(w);
-    saveStats(); updateNavScore(); updateProgress();
+    saveStats(); updateNavScore();
   }
 }
 
@@ -616,7 +592,11 @@ function markAsCorrect() {
   errorLog = errorLog.filter(e => !(e.it === w.it && e.type === w.type));
   localStorage.setItem('ep_errors', JSON.stringify(errorLog));
   updateErrCount();
-  saveStats(); updateNavScore(); updateProgress();
+  saveStats(); updateNavScore();
+  document.getElementById('feedback').textContent = '✓ Corretto!';
+  document.getElementById('feedback').className = 'feedback-msg correct';
+  document.getElementById('correct-reveal').innerHTML = '';
+  document.getElementById('fix-typo-area').innerHTML = '';
 }
 
 function handleKey(e) {
@@ -625,9 +605,22 @@ function handleKey(e) {
     if (!answered) checkAnswer(); else nextWord();
   }
 }
+
+// Listener globale: Enter funziona sempre, anche dopo risposta sbagliata quando il focus è perso
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    // Non interferire se c'è un campo input attivo (ci pensa handleKey sull'input)
+    const active = document.activeElement;
+    const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+    if (!isInput) {
+      e.preventDefault();
+      if (!answered) checkAnswer(); else nextWord();
+    }
+  }
+});
 function skipWord() {
   const w = deck[currentIdx];
-  if (w) { saveSkipped(w); stats.sk++; saveStats(); updateNavScore(); updateProgress(); }
+  if (w) saveSkipped(w);
   currentIdx++;
   showWord();
 }
@@ -636,7 +629,7 @@ function nextWord() { currentIdx++; showWord(); }
 function showFinished() {
   document.getElementById('q-label').textContent = 'Hai completato tutti i termini!';
   document.getElementById('q-word').textContent = '🎉';
-  document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate · ${stats.sk} saltate`;
+  document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate`;
   document.getElementById('fields-grid').innerHTML = '';
   document.getElementById('feedback').textContent = '';
   document.getElementById('correct-reveal').innerHTML = '';
@@ -649,42 +642,16 @@ function showFinished() {
 }
 
 function updateProgress() {
-  document.getElementById('progress-bar').style.width = (deck.length ? (currentIdx/deck.length)*100 : 0) + '%';
-  // Counter: "X elaborate su Y totali"
-  const done = Math.min(currentIdx, deck.length);
-  const counter = document.getElementById('progress-counter');
-  if (counter) {
-    if (deck.length > 0) {
-      counter.innerHTML = `<strong>${done}</strong> / ${deck.length} elaborate`;
-    } else {
-      counter.textContent = '—';
-    }
-  }
-  // Accuracy strip + pill
-  const total = stats.ok + stats.ko;
-  const pct = total ? Math.round(stats.ok / total * 100) : null;
-  const strip = document.getElementById('accuracy-strip');
-  const pill = document.getElementById('accuracy-pill');
-  if (strip && pill) {
-    if (pct === null) {
-      strip.style.width = '0%';
-      strip.style.background = 'var(--accent-dim)';
-      pill.className = 'accuracy-pill none';
-      pill.textContent = 'Inizia il quiz';
-    } else {
-      strip.style.width = pct + '%';
-      if (pct >= 75) {
-        strip.style.background = 'linear-gradient(90deg, #4caf7a, #2a7a4a)';
-        pill.className = 'accuracy-pill great';
-      } else if (pct >= 50) {
-        strip.style.background = 'linear-gradient(90deg, #f0c040, #e0a020)';
-        pill.className = 'accuracy-pill good';
-      } else {
-        strip.style.background = 'linear-gradient(90deg, #e05555, #c0392b)';
-        pill.className = 'accuracy-pill poor';
-      }
-      pill.textContent = `${pct}% corrette`;
-    }
+  const done = stats.ok + stats.ko - _sessionBase;
+  const total = deck.length;
+  const pct = total ? Math.round(done / total * 100) : 0;
+  document.getElementById('progress-bar').style.width = (total ? (done / total) * 100 : 0) + '%';
+  const lbl = document.getElementById('progress-label');
+  const pctEl = document.getElementById('progress-pct');
+  if (lbl) lbl.textContent = `${done} / ${total} elaborate`;
+  if (pctEl) {
+    const answered = stats.ok + stats.ko - _sessionBase;
+    pctEl.textContent = answered > 0 ? `${Math.round((stats.ok - _sessionOkBase) / answered * 100)}% corrette` : '';
   }
 }
 
@@ -901,16 +868,15 @@ function resetErrors() {
 function updateNavScore() {
   document.getElementById('nav-ok').textContent = stats.ok;
   document.getElementById('nav-ko').textContent = stats.ko;
-  document.getElementById('nav-sk').textContent = stats.sk || 0;
   document.getElementById('st-ok').textContent = stats.ok;
   document.getElementById('st-ko').textContent = stats.ko;
-  const tot = stats.ok + stats.ko; // saltate escluse dal totale valutato
+  const tot = stats.ok+stats.ko;
   document.getElementById('st-tot').textContent = tot;
   document.getElementById('st-pct').textContent = tot ? Math.round(stats.ok/tot*100)+'%' : '—';
 }
 function resetStats() {
   if(!confirm('Azzerare le statistiche?')) return;
-  stats={ok:0,ko:0,sk:0}; saveStats(); updateNavScore(); updateProgress();
+  stats={ok:0,ko:0}; saveStats(); updateNavScore();
 }
 function showSection(name, btn) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
