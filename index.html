@@ -89,6 +89,32 @@
   }
   .btn.primary:hover { background: #235a3f; border-color: #235a3f; }
 
+  /* Progress info row */
+  .progress-info {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 13px; color: var(--text2); margin-bottom: 8px; flex-wrap: wrap; gap: 6px;
+  }
+  .progress-counter { font-weight: 500; }
+  .progress-counter strong { color: var(--accent); }
+  .accuracy-pill {
+    font-size: 12px; font-weight: 600; padding: 3px 10px;
+    border-radius: 20px; transition: background 0.4s, color 0.4s;
+  }
+  .accuracy-pill.great { background: #eaf5ee; color: #2a7a4a; border: 1px solid #b0d8be; }
+  .accuracy-pill.good  { background: #fef9e7; color: #b7770d; border: 1px solid #f0d080; }
+  .accuracy-pill.poor  { background: var(--red-bg); color: var(--red); border: 1px solid var(--red-border); }
+  .accuracy-pill.none  { background: var(--surface2); color: var(--text3); border: 1px solid var(--border); }
+
+  /* Accuracy strip (colored band) */
+  .accuracy-strip-wrap {
+    height: 6px; background: var(--border); border-radius: 3px; margin-bottom: 6px;
+    overflow: hidden;
+  }
+  .accuracy-strip-fill {
+    height: 100%; border-radius: 3px;
+    transition: width 0.4s ease, background 0.4s ease;
+  }
+
   .progress-wrap { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 24px; }
   .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
 
@@ -305,6 +331,11 @@
     </select>
     <button class="btn" onclick="doResetQuiz()">Ricomincia</button>
   </div>
+  <div class="progress-info">
+    <span class="progress-counter" id="progress-counter">—</span>
+    <span class="accuracy-pill none" id="accuracy-pill">—</span>
+  </div>
+  <div class="accuracy-strip-wrap"><div class="accuracy-strip-fill" id="accuracy-strip" style="width:0%"></div></div>
   <div class="progress-wrap"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
   <div class="card" id="quiz-card">
     <div class="card-label" id="q-label">Traduci in inglese</div>
@@ -492,10 +523,10 @@ function showWord() {
   grid.className = 'fields-grid ' + (isVerb ? 'three' : 'one');
   const inputAttrs = 'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text"';
   grid.innerHTML = isVerb
-    ? `<div class="field-wrap"><div class="field-label">Base form</div><input class="field-input" id="f-base" placeholder="es. go" ${inputAttrs}></div>
-       <div class="field-wrap"><div class="field-label">Past simple</div><input class="field-input" id="f-past" placeholder="es. went" ${inputAttrs}></div>
-       <div class="field-wrap"><div class="field-label">Past participle</div><input class="field-input" id="f-part" placeholder="es. gone" ${inputAttrs}></div>`
-    : `<div class="field-wrap"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." ${inputAttrs}></div>`;
+    ? `<div class="field-wrap"><div class="field-label">Base form</div><input class="field-input" id="f-base" placeholder="es. go" ${inputAttrs} onkeydown="handleKey(event)"></div>
+       <div class="field-wrap"><div class="field-label">Past simple</div><input class="field-input" id="f-past" placeholder="es. went" ${inputAttrs} onkeydown="handleKey(event)"></div>
+       <div class="field-wrap"><div class="field-label">Past participle</div><input class="field-input" id="f-part" placeholder="es. gone" ${inputAttrs} onkeydown="handleKey(event)"></div>`
+    : `<div class="field-wrap"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." ${inputAttrs} onkeydown="handleKey(event)"></div>`;
   document.getElementById('feedback').textContent = '';
   document.getElementById('feedback').className = 'feedback-msg';
   document.getElementById('correct-reveal').innerHTML = '';
@@ -547,7 +578,7 @@ function checkAnswer() {
     document.getElementById('feedback').className = 'feedback-msg correct';
     document.getElementById('q-audio-btn').style.display = 'flex';
     document.getElementById('next-btn').style.display = 'inline-block';
-    saveStats(); updateNavScore();
+    saveStats(); updateNavScore(); updateProgress();
     speakCurrent();
     setTimeout(() => { if(answered) { currentIdx++; showWord(); } }, 2000);
   } else {
@@ -569,7 +600,7 @@ function checkAnswer() {
     </div>`;
 
     saveError(w);
-    saveStats(); updateNavScore();
+    saveStats(); updateNavScore(); updateProgress();
   }
 }
 
@@ -582,25 +613,15 @@ function markAsCorrect() {
   errorLog = errorLog.filter(e => !(e.it === w.it && e.type === w.type));
   localStorage.setItem('ep_errors', JSON.stringify(errorLog));
   updateErrCount();
-  saveStats(); updateNavScore();
-  document.getElementById('feedback').textContent = '✓ Corretto!';
-  document.getElementById('feedback').className = 'feedback-msg correct';
-  document.getElementById('correct-reveal').innerHTML = '';
-  document.getElementById('fix-typo-area').innerHTML = '';
+  saveStats(); updateNavScore(); updateProgress();
 }
 
-document.addEventListener('keydown', function(e) {
+function handleKey(e) {
   if (e.key === 'Enter') {
-    // Non attivare se si sta scrivendo in un textarea o in campi fuori dal quiz
-    const tag = document.activeElement && document.activeElement.tagName;
-    if (tag === 'TEXTAREA') return;
-    // Non attivare se il quiz non è visibile
-    const quizSection = document.getElementById('sec-quiz');
-    if (!quizSection || !quizSection.classList.contains('active')) return;
     e.preventDefault();
     if (!answered) checkAnswer(); else nextWord();
   }
-});
+}
 function skipWord() {
   const w = deck[currentIdx];
   if (w) saveSkipped(w);
@@ -626,6 +647,42 @@ function showFinished() {
 
 function updateProgress() {
   document.getElementById('progress-bar').style.width = (deck.length ? (currentIdx/deck.length)*100 : 0) + '%';
+  // Counter: "X elaborate su Y totali"
+  const done = Math.min(currentIdx, deck.length);
+  const counter = document.getElementById('progress-counter');
+  if (counter) {
+    if (deck.length > 0) {
+      counter.innerHTML = `<strong>${done}</strong> / ${deck.length} elaborate`;
+    } else {
+      counter.textContent = '—';
+    }
+  }
+  // Accuracy strip + pill
+  const total = stats.ok + stats.ko;
+  const pct = total ? Math.round(stats.ok / total * 100) : null;
+  const strip = document.getElementById('accuracy-strip');
+  const pill = document.getElementById('accuracy-pill');
+  if (strip && pill) {
+    if (pct === null) {
+      strip.style.width = '0%';
+      strip.style.background = 'var(--accent-dim)';
+      pill.className = 'accuracy-pill none';
+      pill.textContent = 'Inizia il quiz';
+    } else {
+      strip.style.width = pct + '%';
+      if (pct >= 75) {
+        strip.style.background = 'linear-gradient(90deg, #4caf7a, #2a7a4a)';
+        pill.className = 'accuracy-pill great';
+      } else if (pct >= 50) {
+        strip.style.background = 'linear-gradient(90deg, #f0c040, #e0a020)';
+        pill.className = 'accuracy-pill good';
+      } else {
+        strip.style.background = 'linear-gradient(90deg, #e05555, #c0392b)';
+        pill.className = 'accuracy-pill poor';
+      }
+      pill.textContent = `${pct}% corrette`;
+    }
+  }
 }
 
 function speakCurrent() { if(currentAudioText) speakText(currentAudioText, document.getElementById('q-audio-btn')); }
@@ -849,7 +906,7 @@ function updateNavScore() {
 }
 function resetStats() {
   if(!confirm('Azzerare le statistiche?')) return;
-  stats={ok:0,ko:0}; saveStats(); updateNavScore();
+  stats={ok:0,ko:0}; saveStats(); updateNavScore(); updateProgress();
 }
 function showSection(name, btn) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
