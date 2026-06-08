@@ -24,6 +24,9 @@
     --red: #c0392b;
     --red-bg: #fdf0ee;
     --red-border: #e8b0a8;
+    --orange: #d4700a;
+    --orange-bg: #fef3e8;
+    --orange-border: #f0c088;
     --radius: 10px;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -62,6 +65,7 @@
   .dot { width: 7px; height: 7px; border-radius: 50%; }
   .dot-g { background: var(--green); }
   .dot-r { background: var(--red); }
+  .dot-o { background: var(--orange); }
 
   .section { display: none; padding: 24px; max-width: 760px; margin: 0 auto; }
   .section.active { display: block; }
@@ -287,6 +291,7 @@
   <div class="score-pill">
     <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
     <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
+    <span><span class="dot dot-o"></span><span id="nav-skip">0</span></span>
   </div>
 </nav>
 
@@ -304,10 +309,6 @@
       <option value="sequential">Ordine originale</option>
     </select>
     <button class="btn" onclick="doResetQuiz()">Ricomincia</button>
-  </div>
-  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
-    <span id="progress-label" style="font-size:13px;color:var(--text3);font-family:monospace;"></span>
-    <span id="progress-pct" style="font-size:13px;color:var(--accent);font-weight:600;"></span>
   </div>
   <div class="progress-wrap"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
   <div class="card" id="quiz-card">
@@ -392,8 +393,6 @@ const RAW_BUILTIN = []; // Tutti i termini provengono dal Google Sheet
 
 let RAW = [...RAW_BUILTIN];
 let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
-let _sessionBase = stats.ok + stats.ko;   // totale all'avvio della sessione
-let _sessionOkBase = stats.ok;            // ok all'avvio della sessione
 let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentSpeakBtn = null;
 
 // Carica parole da Google Sheets (se pubblico)
@@ -469,16 +468,12 @@ function resetQuiz() {
   let words = mode==='verbs' ? RAW.filter(w=>w.type==='verb') : mode==='vocab' ? RAW.filter(w=>w.type==='vocab') : RAW;
   deck = order==='random' ? shuffle(words) : [...words];
   currentIdx = 0; answered = false;
-  _sessionBase = stats.ok + stats.ko;
-  _sessionOkBase = stats.ok;
   showWord();
 }
 
 // Ricomincia: azzera stats e forza ordine casuale
 function doResetQuiz() {
   stats = {ok:0, ko:0};
-  _sessionBase = 0;
-  _sessionOkBase = 0;
   saveStats();
   updateNavScore();
   // Forza ordine casuale indipendentemente dal selettore
@@ -605,19 +600,6 @@ function handleKey(e) {
     if (!answered) checkAnswer(); else nextWord();
   }
 }
-
-// Listener globale: Enter funziona sempre, anche dopo risposta sbagliata quando il focus è perso
-document.addEventListener('keydown', function(e) {
-  if (e.key === 'Enter') {
-    // Non interferire se c'è un campo input attivo (ci pensa handleKey sull'input)
-    const active = document.activeElement;
-    const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
-    if (!isInput) {
-      e.preventDefault();
-      if (!answered) checkAnswer(); else nextWord();
-    }
-  }
-});
 function skipWord() {
   const w = deck[currentIdx];
   if (w) saveSkipped(w);
@@ -642,17 +624,7 @@ function showFinished() {
 }
 
 function updateProgress() {
-  const done = stats.ok + stats.ko - _sessionBase;
-  const total = deck.length;
-  const pct = total ? Math.round(done / total * 100) : 0;
-  document.getElementById('progress-bar').style.width = (total ? (done / total) * 100 : 0) + '%';
-  const lbl = document.getElementById('progress-label');
-  const pctEl = document.getElementById('progress-pct');
-  if (lbl) lbl.textContent = `${done} / ${total} elaborate`;
-  if (pctEl) {
-    const answered = stats.ok + stats.ko - _sessionBase;
-    pctEl.textContent = answered > 0 ? `${Math.round((stats.ok - _sessionOkBase) / answered * 100)}% corrette` : '';
-  }
+  document.getElementById('progress-bar').style.width = (deck.length ? (currentIdx/deck.length)*100 : 0) + '%';
 }
 
 function speakCurrent() { if(currentAudioText) speakText(currentAudioText, document.getElementById('q-audio-btn')); }
@@ -747,6 +719,9 @@ function saveError(w) {
 function updateErrCount() {
   const el = document.getElementById('nav-err-count');
   el.textContent = errorLog.length > 0 ? `(${errorLog.length})` : '';
+  const skipCount = errorLog.filter(e => e.skipped).length;
+  const skipEl = document.getElementById('nav-skip');
+  if (skipEl) skipEl.textContent = skipCount;
 }
 
 function sortErrors() {
@@ -802,7 +777,7 @@ function renderErrors() {
         <div><div class="error-it">${e.it}</div><div class="error-forms">${e.type === 'verb' ? 'verbo' : 'vocabolo'}</div></div>
         <div style="flex:1"><div class="error-en">${e.base}</div>${e.type === 'verb' ? `<div class="error-forms">${e.past} · ${e.part}</div>` : ''}</div>
         <button class="tbl-audio" onclick="speakText('${spSafe}', this)" title="Ascolta"><svg viewBox="0 0 16 16"><polygon points="3,2 13,8 3,14"/></svg></button>
-        ${e.skipped ? '<span class="error-count" style="background:var(--accent-light);color:var(--accent);border:1px solid var(--accent-dim)">Saltato</span>' : '<span class="error-count">'+e.count+'× sbagliato</span>'}
+        ${e.skipped ? '<span class="error-count" style="background:var(--orange-bg);color:var(--orange);border:1px solid var(--orange-border)">Saltato</span>' : '<span class="error-count">'+e.count+'× sbagliato</span>'}
       </div>`;
     }
     html += '</div>';
