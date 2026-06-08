@@ -492,10 +492,10 @@ function showWord() {
   grid.className = 'fields-grid ' + (isVerb ? 'three' : 'one');
   const inputAttrs = 'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text"';
   grid.innerHTML = isVerb
-    ? `<div class="field-wrap"><div class="field-label">Base form</div><input class="field-input" id="f-base" placeholder="es. go" ${inputAttrs} onkeydown="handleKey(event)"></div>
-       <div class="field-wrap"><div class="field-label">Past simple</div><input class="field-input" id="f-past" placeholder="es. went" ${inputAttrs} onkeydown="handleKey(event)"></div>
-       <div class="field-wrap"><div class="field-label">Past participle</div><input class="field-input" id="f-part" placeholder="es. gone" ${inputAttrs} onkeydown="handleKey(event)"></div>`
-    : `<div class="field-wrap"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." ${inputAttrs} onkeydown="handleKey(event)"></div>`;
+    ? `<div class="field-wrap"><div class="field-label">Base form</div><input class="field-input" id="f-base" placeholder="es. go" ${inputAttrs}></div>
+       <div class="field-wrap"><div class="field-label">Past simple</div><input class="field-input" id="f-past" placeholder="es. went" ${inputAttrs}></div>
+       <div class="field-wrap"><div class="field-label">Past participle</div><input class="field-input" id="f-part" placeholder="es. gone" ${inputAttrs}></div>`
+    : `<div class="field-wrap"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." ${inputAttrs}></div>`;
   document.getElementById('feedback').textContent = '';
   document.getElementById('feedback').className = 'feedback-msg';
   document.getElementById('correct-reveal').innerHTML = '';
@@ -589,12 +589,18 @@ function markAsCorrect() {
   document.getElementById('fix-typo-area').innerHTML = '';
 }
 
-function handleKey(e) {
+document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter') {
+    // Non attivare se si sta scrivendo in un textarea o in campi fuori dal quiz
+    const tag = document.activeElement && document.activeElement.tagName;
+    if (tag === 'TEXTAREA') return;
+    // Non attivare se il quiz non è visibile
+    const quizSection = document.getElementById('sec-quiz');
+    if (!quizSection || !quizSection.classList.contains('active')) return;
     e.preventDefault();
     if (!answered) checkAnswer(); else nextWord();
   }
-}
+});
 function skipWord() {
   const w = deck[currentIdx];
   if (w) saveSkipped(w);
