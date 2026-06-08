@@ -52,6 +52,7 @@
   .dot { width: 7px; height: 7px; border-radius: 50%; }
   .dot-g { background: var(--green); }
   .dot-r { background: var(--red); }
+  .dot-y { background: #c8a020; }
 
   .main { padding: 24px; max-width: 760px; margin: 0 auto; }
 
@@ -220,6 +221,7 @@
   <div class="score-pill">
     <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
     <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
+    <span><span class="dot dot-y"></span><span id="nav-sk">0</span></span>
   </div>
 </nav>
 
@@ -232,7 +234,7 @@
 let errorLog = JSON.parse(localStorage.getItem('ep_errors') || '[]');
 
 // Session stats (non toccano quelle globali)
-let sessionStats = { ok: 0, ko: 0 };
+let sessionStats = { ok: 0, ko: 0, sk: 0 };
 let deck = [];
 let currentIdx = 0;
 let answered = false;
@@ -258,7 +260,7 @@ function init() {
   deck = [...errorWords];
   currentIdx = 0;
   answered = false;
-  sessionStats = { ok: 0, ko: 0 };
+  sessionStats = { ok: 0, ko: 0, sk: 0 };
   renderQuiz();
 }
 
@@ -426,14 +428,14 @@ function handleKey(e) {
   }
 }
 
-function skipWord() { currentIdx++; showWord(); }
+function skipWord() { sessionStats.sk++; updateNavScore(); updateProgress(); currentIdx++; showWord(); }
 function nextWord() { currentIdx++; showWord(); }
 
 function reshuffleDeck() {
   deck = shuffle(deck);
   currentIdx = 0;
   answered = false;
-  sessionStats = { ok: 0, ko: 0 };
+  sessionStats = { ok: 0, ko: 0, sk: 0 };
   showWord();
   updateNavScore(); updateProgress();
 }
@@ -446,7 +448,7 @@ function showFinished() {
     <div class="card finished-card">
       <span class="emoji">${pct >= 80 ? '🎉' : pct >= 50 ? '💪' : '📚'}</span>
       <div class="title">Sessione completata!</div>
-      <div class="subtitle">${sessionStats.ok} corrette · ${sessionStats.ko} sbagliate · ${pct}% di precisione</div>
+      <div class="subtitle">${sessionStats.ok} corrette · ${sessionStats.ko} sbagliate · ${sessionStats.sk} saltate · ${pct}% di precisione</div>
       <div class="actions">
         <button class="btn primary" onclick="reshuffleDeck()">🔀 Riprova mescolato</button>
         <button class="btn" onclick="restartFromTop()">↩ Ricomincia dall'inizio</button>
@@ -459,7 +461,7 @@ function showFinished() {
 function restartFromTop() {
   currentIdx = 0;
   answered = false;
-  sessionStats = { ok: 0, ko: 0 };
+  sessionStats = { ok: 0, ko: 0, sk: 0 };
   showWord();
   updateNavScore(); updateProgress();
 }
@@ -505,6 +507,7 @@ function updateProgress() {
 function updateNavScore() {
   document.getElementById('nav-ok').textContent = sessionStats.ok;
   document.getElementById('nav-ko').textContent = sessionStats.ko;
+  document.getElementById('nav-sk').textContent = sessionStats.sk || 0;
 }
 
 function speakCurrent() {

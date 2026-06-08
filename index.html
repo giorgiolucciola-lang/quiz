@@ -62,6 +62,7 @@
   .dot { width: 7px; height: 7px; border-radius: 50%; }
   .dot-g { background: var(--green); }
   .dot-r { background: var(--red); }
+  .dot-y { background: #c8a020; }
 
   .section { display: none; padding: 24px; max-width: 760px; margin: 0 auto; }
   .section.active { display: block; }
@@ -313,6 +314,7 @@
   <div class="score-pill">
     <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
     <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
+    <span><span class="dot dot-y"></span><span id="nav-sk">0</span></span>
   </div>
 </nav>
 
@@ -418,7 +420,8 @@ const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazion
 const RAW_BUILTIN = []; // Tutti i termini provengono dal Google Sheet
 
 let RAW = [...RAW_BUILTIN];
-let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
+let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0,"sk":0}');
+if (stats.sk === undefined) stats.sk = 0; // retrocompatibilità
 let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentSpeakBtn = null;
 
 // Carica parole da Google Sheets (se pubblico)
@@ -499,7 +502,7 @@ function resetQuiz() {
 
 // Ricomincia: azzera stats e forza ordine casuale
 function doResetQuiz() {
-  stats = {ok:0, ko:0};
+  stats = {ok:0, ko:0, sk:0};
   saveStats();
   updateNavScore();
   // Forza ordine casuale indipendentemente dal selettore
@@ -624,7 +627,7 @@ function handleKey(e) {
 }
 function skipWord() {
   const w = deck[currentIdx];
-  if (w) saveSkipped(w);
+  if (w) { saveSkipped(w); stats.sk++; saveStats(); updateNavScore(); updateProgress(); }
   currentIdx++;
   showWord();
 }
@@ -633,7 +636,7 @@ function nextWord() { currentIdx++; showWord(); }
 function showFinished() {
   document.getElementById('q-label').textContent = 'Hai completato tutti i termini!';
   document.getElementById('q-word').textContent = '🎉';
-  document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate`;
+  document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate · ${stats.sk} saltate`;
   document.getElementById('fields-grid').innerHTML = '';
   document.getElementById('feedback').textContent = '';
   document.getElementById('correct-reveal').innerHTML = '';
@@ -898,15 +901,16 @@ function resetErrors() {
 function updateNavScore() {
   document.getElementById('nav-ok').textContent = stats.ok;
   document.getElementById('nav-ko').textContent = stats.ko;
+  document.getElementById('nav-sk').textContent = stats.sk || 0;
   document.getElementById('st-ok').textContent = stats.ok;
   document.getElementById('st-ko').textContent = stats.ko;
-  const tot = stats.ok+stats.ko;
+  const tot = stats.ok + stats.ko; // saltate escluse dal totale valutato
   document.getElementById('st-tot').textContent = tot;
   document.getElementById('st-pct').textContent = tot ? Math.round(stats.ok/tot*100)+'%' : '—';
 }
 function resetStats() {
   if(!confirm('Azzerare le statistiche?')) return;
-  stats={ok:0,ko:0}; saveStats(); updateNavScore(); updateProgress();
+  stats={ok:0,ko:0,sk:0}; saveStats(); updateNavScore(); updateProgress();
 }
 function showSection(name, btn) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
