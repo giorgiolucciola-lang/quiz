@@ -398,41 +398,83 @@ async function loadFromSheet() {
     if (!res.ok) return;
     const text = await res.text();
 
-    // Parser CSV corretto che gestisce celle con virgole tra virgolette
+    // Parser CSV robusto: gestisce virgolette, virgole interne e \r\n
     function parseCSVRow(row) {
+      // Rimuovi \r finale se presente
+      if (row.endsWith('\r')) row = row.slice(0, -1);
       const cols = [];
       let cur = '', inQ = false;
       for (let i = 0; i < row.length; i++) {
         const c = row[i];
-        if (c === '"') { inQ = !inQ; }
-        else if (c === ',' && !inQ) { cols.push(cur.trim()); cur = ''; }
-        else { cur += c; }
+        if (c === '"') {
+          // Doppia virgoletta dentro stringa quotata = virgoletta letterale
+          if (inQ && row[i+1] === '"') { cur += '"'; i++; }
+          else { inQ = !inQ; }
+        } else if (c === ',' && !inQ) {
+          cols.push(cur.trim());
+          cur = '';
+        } else {
+          cur += c;
+        }
       }
       cols.push(cur.trim());
       return cols;
     }
 
-    const rows = text.trim().split('\n').slice(2); // skip 2 header rows
+    // Normalizza fine riga e dividi — gestisce sia \r\n che \n
+    const normalized = text.replace(/\r\n/g, '\n').replace(/\r/g, '\n');
+    const rows = normalized.trim().split('\n').slice(2); // salta 2 righe di intestazione
+
     const loaded = [];
     const seen = new Set();
+    let skippedEmpty = 0;
+
     for (const row of rows) {
+      if (!row.trim()) continue; // salta righe vuote
       const cols = parseCSVRow(row);
-      const clean = c => (c || '').replace(/^"|"$/g,'').trim();
-      const it = clean(cols[0]); const base = clean(cols[5]); const past = clean(cols[6]); const part = clean(cols[7]);
-      if (!it || !base) continue;
+      // Rimuove virgolette esterne residue e spazi
+      const clean = c => (c || '').replace(/^"|"$/g, '').trim();
+
+      const it   = clean(cols[0]);  // A = italiano
+      const base = clean(cols[5]);  // F = forma base inglese
+      const past = clean(cols[6]);  // G = past simple (solo verbi)
+      const part = clean(cols[7]);  // H = past participle (solo verbi)
+      const typeRaw = clean(cols[12]); // M = tipo: V o W
+
+      if (!it || !base) { skippedEmpty++; continue; }
+
       const key = it.toLowerCase();
       if (seen.has(key)) continue;
       seen.add(key);
-      const type = (past && past.trim()) ? 'verb' : 'vocab';
-      loaded.push({it, base, past: past||null, part: part||null, type});
+
+      // Legge il tipo dalla colonna M: V=verbo, W=vocabolo
+      // Fallback: se M non è presente, usa presenza di G come indicatore
+      const type = (typeRaw.toUpperCase() === 'V') ? 'verb'
+                 : (typeRaw.toUpperCase() === 'W') ? 'vocab'
+                 : (past ? 'verb' : 'vocab');
+
+      loaded.push({
+        it,
+        base,
+        past: (type === 'verb' && past) ? past : null,
+        part: (type === 'verb' && part) ? part : null,
+        type
+      });
     }
+
+    console.log(`[Sheet] Righe totali: ${rows.length}, caricate: ${loaded.length}, saltate vuote: ${skippedEmpty}`);
+
     if (loaded.length > 0) {
       RAW = loaded;
-      document.getElementById('word-count').textContent = loaded.length + ' parole caricate';
+      const verbs = loaded.filter(w => w.type === 'verb').length;
+      const vocab = loaded.filter(w => w.type === 'vocab').length;
+      document.getElementById('word-count').textContent = `${loaded.length} parole (${verbs} verbi, ${vocab} vocaboli)`;
       resetQuiz();
       renderVocabTable();
     }
-  } catch(e) { /* silenzioso: usa solo dati built-in */ }
+  } catch(e) {
+    console.error('[Sheet] Errore caricamento:', e);
+  }
 }
 
 function shuffle(arr) {
