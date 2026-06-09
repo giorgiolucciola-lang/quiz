@@ -24,6 +24,9 @@
     --red: #c0392b;
     --red-bg: #fdf0ee;
     --red-border: #e8b0a8;
+    --orange: #d4700a;
+    --orange-bg: #fef3e8;
+    --orange-border: #f0c088;
     --radius: 10px;
   }
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
@@ -52,6 +55,7 @@
   .dot { width: 7px; height: 7px; border-radius: 50%; }
   .dot-g { background: var(--green); }
   .dot-r { background: var(--red); }
+  .dot-o { background: var(--orange); }
 
   .main { padding: 24px; max-width: 760px; margin: 0 auto; }
 
@@ -194,6 +198,7 @@
   <div class="score-pill">
     <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
     <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
+    <span><span class="dot dot-o"></span><span id="nav-skip">0</span></span>
   </div>
 </nav>
 
@@ -457,6 +462,8 @@ function updateProgress() {
 function updateNavScore() {
   document.getElementById('nav-ok').textContent = sessionStats.ok;
   document.getElementById('nav-ko').textContent = sessionStats.ko;
+  const skipEl = document.getElementById('nav-skip');
+  if (skipEl) skipEl.textContent = errorLog.filter(e => e.skipped).length;
 }
 
 function speakCurrent() {
