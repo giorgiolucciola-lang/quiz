@@ -310,6 +310,10 @@
     </select>
     <button class="btn" onclick="doResetQuiz()">Ricomincia</button>
   </div>
+  <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:6px;">
+    <span id="progress-label" style="font-size:13px;color:var(--text3);font-family:monospace;"></span>
+    <span id="progress-pct" style="font-size:13px;color:var(--accent);font-weight:600;"></span>
+  </div>
   <div class="progress-wrap"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
   <div class="card" id="quiz-card">
     <div class="card-label" id="q-label">Traduci in inglese</div>
@@ -393,6 +397,8 @@ const RAW_BUILTIN = []; // Tutti i termini provengono dal Google Sheet
 
 let RAW = [...RAW_BUILTIN];
 let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
+let _sessionBase = stats.ok + stats.ko;
+let _sessionOkBase = stats.ok;
 let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentSpeakBtn = null;
 
 // Carica parole da Google Sheets (se pubblico)
@@ -468,14 +474,22 @@ function resetQuiz() {
   let words = mode==='verbs' ? RAW.filter(w=>w.type==='verb') : mode==='vocab' ? RAW.filter(w=>w.type==='vocab') : RAW;
   deck = order==='random' ? shuffle(words) : [...words];
   currentIdx = 0; answered = false;
+  _sessionBase = stats.ok + stats.ko;
+  _sessionOkBase = stats.ok;
   showWord();
 }
 
-// Ricomincia: azzera stats e forza ordine casuale
+// Ricomincia: azzera tutto e forza ordine casuale
 function doResetQuiz() {
   stats = {ok:0, ko:0};
+  _sessionBase = 0;
+  _sessionOkBase = 0;
   saveStats();
   updateNavScore();
+  // Azzera anche errori e saltati
+  errorLog = [];
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  updateErrCount();
   // Forza ordine casuale indipendentemente dal selettore
   const mode = document.getElementById('mode-select').value;
   let words = mode==='verbs' ? RAW.filter(w=>w.type==='verb') : mode==='vocab' ? RAW.filter(w=>w.type==='vocab') : RAW;
@@ -600,6 +614,18 @@ function handleKey(e) {
     if (!answered) checkAnswer(); else nextWord();
   }
 }
+
+// Listener globale: Enter funziona anche quando il focus è perso
+document.addEventListener('keydown', function(e) {
+  if (e.key === 'Enter') {
+    const active = document.activeElement;
+    const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
+    if (!isInput) {
+      e.preventDefault();
+      if (!answered) checkAnswer(); else nextWord();
+    }
+  }
+});
 function skipWord() {
   const w = deck[currentIdx];
   if (w) saveSkipped(w);
@@ -624,7 +650,13 @@ function showFinished() {
 }
 
 function updateProgress() {
-  document.getElementById('progress-bar').style.width = (deck.length ? (currentIdx/deck.length)*100 : 0) + '%';
+  const done = stats.ok + stats.ko - _sessionBase;
+  const total = deck.length;
+  document.getElementById('progress-bar').style.width = (total ? (done / total) * 100 : 0) + '%';
+  const lbl = document.getElementById('progress-label');
+  const pctEl = document.getElementById('progress-pct');
+  if (lbl) lbl.textContent = `${done} / ${total} elaborate`;
+  if (pctEl) pctEl.textContent = done > 0 ? `${Math.round((stats.ok - _sessionOkBase) / done * 100)}% corrette` : '';
 }
 
 function speakCurrent() { if(currentAudioText) speakText(currentAudioText, document.getElementById('q-audio-btn')); }
