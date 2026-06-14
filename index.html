@@ -514,6 +514,10 @@ function resetQuiz() {
 function doResetQuiz() {
   stats = {ok:0, ko:0};
   saveStats();
+  // Azzera anche il contatore delle parole saltate
+  errorLog = errorLog.filter(e => !e.skipped);
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  updateErrCount();
   updateNavScore();
   // Forza ordine casuale indipendentemente dal selettore
   const mode = document.getElementById('mode-select').value;
