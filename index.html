@@ -1,8 +1,5 @@
 <!DOCTYPE html>
 <html lang="it">
-  <link rel="apple-touch-icon" href="icon-180.png">
-<link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -276,9 +273,6 @@
     nav { flex-wrap: wrap; gap: 8px; }
   }
 </style>
-  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
-<link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
-<link rel="apple-touch-icon" href="icon-180.png">
 </head>
 <body>
 
@@ -314,6 +308,14 @@
     <button class="btn" onclick="doResetQuiz()">Ricomincia</button>
   </div>
   <div class="progress-wrap"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
+  <div id="session-stats-bar" style="display:none; font-size:13px; color:var(--text2); margin-bottom:14px; gap:14px; align-items:center; flex-wrap:wrap;">
+    <strong style="color:var(--text);">Sessione ripasso:</strong>
+    <span><span class="dot dot-g" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></span><span id="sess-ok">0</span></span>
+    <span><span class="dot dot-r" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></span><span id="sess-ko">0</span></span>
+    <span><span class="dot dot-o" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></span><span id="sess-skip">0</span></span>
+    <span id="sess-total" style="color:var(--text3);"></span>
+    <span class="reset-link" onclick="exitSession()">Esci dalla sessione</span>
+  </div>
   <div class="card" id="quiz-card">
     <div class="card-label" id="q-label">Traduci in inglese</div>
     <div class="card-word-row" id="word-row">
@@ -397,6 +399,7 @@ const RAW_BUILTIN = []; // Tutti i termini provengono dal Google Sheet
 let RAW = [...RAW_BUILTIN];
 let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
 let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentSpeakBtn = null;
+let reviewSession = null; // {ok:0, ko:0, skip:0, total:0} oppure null se non in sessione errori
 
 // Carica parole da Google Sheets (se pubblico)
 async function loadFromSheet() {
@@ -485,6 +488,22 @@ async function loadFromSheet() {
   }
 }
 
+function updateSessionBar() {
+  const bar = document.getElementById('session-stats-bar');
+  if (!reviewSession) { bar.style.display = 'none'; return; }
+  bar.style.display = 'flex';
+  document.getElementById('sess-ok').textContent = reviewSession.ok;
+  document.getElementById('sess-ko').textContent = reviewSession.ko;
+  document.getElementById('sess-skip').textContent = reviewSession.skip;
+  document.getElementById('sess-total').textContent = `(${deck.length} parole)`;
+}
+
+function exitSession() {
+  reviewSession = null;
+  updateSessionBar();
+  resetQuiz();
+}
+
 function shuffle(arr) {
   const a = [...arr];
   for (let i = a.length-1; i>0; i--) { const j = Math.floor(Math.random()*(i+1)); [a[i],a[j]]=[a[j],a[i]]; }
@@ -508,6 +527,8 @@ function searchWord() {
 }
 
 function resetQuiz() {
+  reviewSession = null;
+  updateSessionBar();
   const mode = document.getElementById('mode-select').value;
   const order = document.getElementById('order-select').value;
   let words = mode==='verbs' ? RAW.filter(w=>w.type==='verb') : mode==='vocab' ? RAW.filter(w=>w.type==='vocab') : RAW;
@@ -518,6 +539,8 @@ function resetQuiz() {
 
 // Ricomincia: azzera stats e forza ordine casuale
 function doResetQuiz() {
+  reviewSession = null;
+  updateSessionBar();
   stats = {ok:0, ko:0};
   saveStats();
   // Azzera anche il contatore delle parole saltate
@@ -597,6 +620,7 @@ function checkAnswer() {
 
   if (allCorrect) {
     stats.ok++;
+    if (reviewSession) { reviewSession.ok++; updateSessionBar(); }
     document.getElementById('feedback').textContent = '✓ Corretto!';
     document.getElementById('feedback').className = 'feedback-msg correct';
     document.getElementById('q-audio-btn').style.display = 'flex';
@@ -606,6 +630,7 @@ function checkAnswer() {
     setTimeout(() => { if(answered) { currentIdx++; showWord(); } }, 2000);
   } else {
     stats.ko++;
+    if (reviewSession) { reviewSession.ko++; updateSessionBar(); }
     document.getElementById('feedback').textContent = '✗ Sbagliato';
     document.getElementById('feedback').className = 'feedback-msg wrong';
     const rev = document.getElementById('correct-reveal');
@@ -631,6 +656,11 @@ function markAsCorrect() {
   // Annulla l'errore e segna come corretto
   stats.ko = Math.max(0, stats.ko - 1);
   stats.ok++;
+  if (reviewSession) {
+    reviewSession.ko = Math.max(0, reviewSession.ko - 1);
+    reviewSession.ok++;
+    updateSessionBar();
+  }
   const w = deck[currentIdx];
   // Rimuovi dall'errorLog
   errorLog = errorLog.filter(e => !(e.it === w.it && e.type === w.type));
@@ -652,6 +682,7 @@ function handleKey(e) {
 function skipWord() {
   const w = deck[currentIdx];
   if (w) saveSkipped(w);
+  if (reviewSession) { reviewSession.skip++; updateSessionBar(); }
   currentIdx++;
   updateNavScore();
   showWord();
@@ -872,6 +903,8 @@ function practiceSelected() {
   deck = selected.map(e => ({it: e.it, base: e.base, past: e.past, part: e.part, type: e.type}));
   deck = shuffle(deck);
   currentIdx = 0; answered = false;
+  reviewSession = {ok:0, ko:0, skip:0};
+  updateSessionBar();
   // Switch to quiz tab
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
