@@ -64,6 +64,15 @@
   .dot-r { background: #dc2626; }
   .dot-o { background: #ea8c00; }
 
+  .score-pill-group { display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+  .session-pill {
+    background: var(--accent-light); border: 1px solid var(--accent-dim);
+    border-radius: 20px; padding: 4px 10px;
+  }
+  .dot-g-sess { width: 18px; height: 18px; border-radius: 50%; background: #6fb88f; }
+  .dot-r-sess { width: 18px; height: 18px; border-radius: 50%; background: #e8917f; }
+  .dot-o-sess { width: 18px; height: 18px; border-radius: 50%; background: #f0b86b; }
+
   .section { display: none; padding: 24px; max-width: 760px; margin: 0 auto; }
   .section.active { display: block; }
 
@@ -285,10 +294,18 @@
     <button class="tab-btn" onclick="showSection('stats', this)">Statistiche</button>
   </div>
   <div id="word-count" style="font-size:12px;color:var(--text3);font-family:monospace;">caricamento...</div>
-  <div class="score-pill">
-    <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
-    <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
-    <span><span class="dot dot-o"></span><span id="nav-skip">0</span></span>
+  <div class="score-pill-group">
+    <div class="score-pill">
+      <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
+      <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
+      <span><span class="dot dot-o"></span><span id="nav-skip">0</span></span>
+    </div>
+    <div class="score-pill session-pill" id="nav-session-pill" style="display:none;">
+      <span style="font-size:11px;color:var(--text3);text-transform:uppercase;letter-spacing:0.06em;">Ripasso</span>
+      <span><span class="dot dot-g-sess"></span><span id="nav-sess-ok">0</span></span>
+      <span><span class="dot dot-r-sess"></span><span id="nav-sess-ko">0</span></span>
+      <span><span class="dot dot-o-sess"></span><span id="nav-sess-skip">0</span></span>
+    </div>
   </div>
 </nav>
 
@@ -490,12 +507,13 @@ async function loadFromSheet() {
 
 function updateSessionBar() {
   const bar = document.getElementById('session-stats-bar');
-  if (!reviewSession) { bar.style.display = 'none'; return; }
+  if (!reviewSession) { bar.style.display = 'none'; updateNavScore(); return; }
   bar.style.display = 'flex';
   document.getElementById('sess-ok').textContent = reviewSession.ok;
   document.getElementById('sess-ko').textContent = reviewSession.ko;
   document.getElementById('sess-skip').textContent = reviewSession.skip;
   document.getElementById('sess-total').textContent = `(${deck.length} parole)`;
+  updateNavScore();
 }
 
 function exitSession() {
@@ -647,7 +665,7 @@ function checkAnswer() {
       <button class="btn" onclick="markAsCorrect()" style="font-size:13px;padding:6px 12px;">✓ Segna come corretto</button>
     </div>`;
 
-    saveError(w);
+    if (!reviewSession) saveError(w);
     updateNavScore();
   }
 }
@@ -935,6 +953,16 @@ function updateNavScore() {
   const tot = stats.ok+stats.ko;
   document.getElementById('st-tot').textContent = tot;
   document.getElementById('st-pct').textContent = tot ? Math.round(stats.ok/tot*100)+'%' : '—';
+
+  const sessPill = document.getElementById('nav-session-pill');
+  if (reviewSession) {
+    sessPill.style.display = 'flex';
+    document.getElementById('nav-sess-ok').textContent = reviewSession.ok;
+    document.getElementById('nav-sess-ko').textContent = reviewSession.ko;
+    document.getElementById('nav-sess-skip').textContent = reviewSession.skip;
+  } else {
+    sessPill.style.display = 'none';
+  }
 }
 function resetStats() {
   if(!confirm('Azzerare le statistiche?')) return;
