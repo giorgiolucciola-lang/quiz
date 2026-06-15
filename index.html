@@ -619,18 +619,18 @@ function checkAnswer() {
   document.getElementById('skip-btn').style.display = 'none';
 
   if (allCorrect) {
-    stats.ok++;
     if (reviewSession) { reviewSession.ok++; updateSessionBar(); }
+    else { stats.ok++; saveStats(); }
     document.getElementById('feedback').textContent = '✓ Corretto!';
     document.getElementById('feedback').className = 'feedback-msg correct';
     document.getElementById('q-audio-btn').style.display = 'flex';
     document.getElementById('next-btn').style.display = 'inline-block';
-    saveStats(); updateNavScore();
+    updateNavScore();
     speakCurrent();
     setTimeout(() => { if(answered) { currentIdx++; showWord(); } }, 2000);
   } else {
-    stats.ko++;
     if (reviewSession) { reviewSession.ko++; updateSessionBar(); }
+    else { stats.ko++; saveStats(); }
     document.getElementById('feedback').textContent = '✗ Sbagliato';
     document.getElementById('feedback').className = 'feedback-msg wrong';
     const rev = document.getElementById('correct-reveal');
@@ -648,25 +648,27 @@ function checkAnswer() {
     </div>`;
 
     saveError(w);
-    saveStats(); updateNavScore();
+    updateNavScore();
   }
 }
 
 function markAsCorrect() {
   // Annulla l'errore e segna come corretto
-  stats.ko = Math.max(0, stats.ko - 1);
-  stats.ok++;
   if (reviewSession) {
     reviewSession.ko = Math.max(0, reviewSession.ko - 1);
     reviewSession.ok++;
     updateSessionBar();
+  } else {
+    stats.ko = Math.max(0, stats.ko - 1);
+    stats.ok++;
+    saveStats();
   }
   const w = deck[currentIdx];
   // Rimuovi dall'errorLog
   errorLog = errorLog.filter(e => !(e.it === w.it && e.type === w.type));
   localStorage.setItem('ep_errors', JSON.stringify(errorLog));
   updateErrCount();
-  saveStats(); updateNavScore();
+  updateNavScore();
   document.getElementById('feedback').textContent = '✓ Corretto!';
   document.getElementById('feedback').className = 'feedback-msg correct';
   document.getElementById('correct-reveal').innerHTML = '';
@@ -681,7 +683,7 @@ function handleKey(e) {
 }
 function skipWord() {
   const w = deck[currentIdx];
-  if (w) saveSkipped(w);
+  if (w && !reviewSession) saveSkipped(w);
   if (reviewSession) { reviewSession.skip++; updateSessionBar(); }
   currentIdx++;
   updateNavScore();
@@ -692,7 +694,11 @@ function nextWord() { currentIdx++; showWord(); }
 function showFinished() {
   document.getElementById('q-label').textContent = 'Hai completato tutti i termini!';
   document.getElementById('q-word').textContent = '🎉';
-  document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate`;
+  if (reviewSession) {
+    document.getElementById('q-hint').textContent = `${reviewSession.ok} corrette · ${reviewSession.ko} sbagliate · ${reviewSession.skip} saltate`;
+  } else {
+    document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate`;
+  }
   document.getElementById('fields-grid').innerHTML = '';
   document.getElementById('feedback').textContent = '';
   document.getElementById('correct-reveal').innerHTML = '';
