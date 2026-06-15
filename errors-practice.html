@@ -52,7 +52,7 @@
   .nav-subtitle { font-size: 13px; font-weight: 400; color: var(--text2); }
   .score-pill { font-size: 13px; color: var(--text2); display: flex; gap: 14px; align-items: center; }
   .score-pill span { display: flex; align-items: center; gap: 6px; }
-  .dot { width: 18px; height: 18px; border-radius: 50%; }
+  .dot { width: 22px; height: 22px; border-radius: 50%; }
   .dot-g { background: #16a34a; }
   .dot-r { background: #dc2626; }
   .dot-o { background: #ea8c00; }
@@ -218,6 +218,15 @@ let answered = false;
 let currentAudioText = '';
 let currentSpeakBtn = null;
 
+function shuffle(arr) {
+  const a = [...arr];
+  for (let i = a.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
+}
+
 // ── Init ──
 function init() {
   // Ricarica errori freschi dal localStorage
@@ -239,14 +248,6 @@ function init() {
   answered = false;
   sessionStats = { ok: 0, ko: 0, skip: 0 };
   renderQuiz();
-
-function shuffle(arr) {
-  const a = [...arr];
-  for (let i = a.length - 1; i > 0; i--) {
-    const j = Math.floor(Math.random() * (i + 1));
-    [a[i], a[j]] = [a[j], a[i]];
-  }
-  return a;
 }
 
 // ── UI States ──
@@ -422,6 +423,9 @@ function reshuffleDeck() {
   currentIdx = 0;
   answered = false;
   sessionStats = { ok: 0, ko: 0, skip: 0 };
+  renderQuiz();
+}
+
 function showFinished() {
   const total = sessionStats.ok + sessionStats.ko;
   const pct = total ? Math.round(sessionStats.ok / total * 100) : 0;
@@ -443,6 +447,9 @@ function restartFromTop() {
   currentIdx = 0;
   answered = false;
   sessionStats = { ok: 0, ko: 0, skip: 0 };
+  renderQuiz();
+}
+
 function updateProgress() {
   const bar = document.getElementById('progress-bar');
   if (bar) bar.style.width = (deck.length ? (currentIdx / deck.length) * 100 : 0) + '%';
