@@ -418,6 +418,7 @@ let RAW = [...RAW_BUILTIN];
 let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
 let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentSpeakBtn = null;
 let reviewSession = null; // {ok:0, ko:0, skip:0, total:0} oppure null se non in sessione errori
+let sessionRestored = false; // true se all'avvio è stata ripristinata una sessione in corso da localStorage
 
 // Carica parole da Google Sheets (se pubblico)
 async function loadFromSheet() {
@@ -498,12 +499,51 @@ async function loadFromSheet() {
       const verbs = loaded.filter(w => w.type === 'verb').length;
       const vocab = loaded.filter(w => w.type === 'vocab').length;
       document.getElementById('word-count').textContent = `${loaded.length} parole (${verbs} verbi, ${vocab} vocaboli)`;
-      resetQuiz();
+      if (!sessionRestored) resetQuiz();
       renderVocabTable();
     }
   } catch(e) {
     console.error('[Sheet] Errore caricamento:', e);
   }
+}
+
+// ── Persistenza della sessione in corso (mazzo + posizione) ──
+// Permette di riprendere esattamente da dove si era arrivati dopo un ricaricamento
+// silenzioso della pagina (es. sospensione del Mac, tab scaricata dal browser, ecc.)
+const SESSION_KEY = 'ep_quiz_progress';
+
+function saveSession() {
+  try {
+    localStorage.setItem(SESSION_KEY, JSON.stringify({
+      deck: deck,
+      currentIdx: currentIdx,
+      mode: document.getElementById('mode-select').value,
+      order: document.getElementById('order-select').value,
+      reviewSession: reviewSession
+    }));
+  } catch(e) { /* localStorage piena o non disponibile: ignora */ }
+}
+
+function clearSession() {
+  localStorage.removeItem(SESSION_KEY);
+}
+
+function restoreSession() {
+  let saved;
+  try { saved = JSON.parse(localStorage.getItem(SESSION_KEY) || 'null'); }
+  catch(e) { saved = null; }
+  if (!saved || !Array.isArray(saved.deck) || saved.deck.length === 0) return false;
+  if (typeof saved.currentIdx !== 'number' || saved.currentIdx < 0 || saved.currentIdx >= saved.deck.length) return false;
+
+  if (saved.mode) document.getElementById('mode-select').value = saved.mode;
+  if (saved.order) document.getElementById('order-select').value = saved.order;
+  deck = saved.deck;
+  currentIdx = saved.currentIdx;
+  answered = false;
+  reviewSession = saved.reviewSession || null;
+  updateSessionBar();
+  showWord();
+  return true;
 }
 
 function updateSessionBar() {
@@ -516,6 +556,7 @@ function updateSessionBar() {
   document.getElementById('sess-total').textContent = `(${deck.length} parole)`;
   updateNavScore();
 }
+
 
 function exitSession() {
   reviewSession = null;
@@ -576,7 +617,7 @@ function doResetQuiz() {
 }
 
 function showWord() {
-  if (currentIdx >= deck.length) { showFinished(); return; }
+  if (currentIdx >= deck.length) { clearSession(); showFinished(); return; }
   answered = false;
   const w = deck[currentIdx];
   const isVerb = w.type==='verb';
@@ -602,6 +643,7 @@ function showWord() {
   document.getElementById('q-audio-btn').style.display = 'none';
   currentAudioText = '';
   updateProgress();
+  saveSession();
   setTimeout(() => { const el = document.getElementById('f-base'); if(el) el.focus(); }, 100);
 }
 
@@ -669,6 +711,7 @@ function checkAnswer() {
     if (!reviewSession) saveError(w);
     updateNavScore();
   }
+  saveSession();
 }
 
 function markAsCorrect() {
@@ -692,6 +735,7 @@ function markAsCorrect() {
   document.getElementById('feedback').className = 'feedback-msg correct';
   document.getElementById('correct-reveal').innerHTML = '';
   document.getElementById('fix-typo-area').innerHTML = '';
+  saveSession();
 }
 
 function handleKey(e) {
@@ -982,7 +1026,8 @@ function showSection(name, btn) {
 window.speechSynthesis.onvoiceschanged = () => {};
 updateNavScore();
 updateErrCount();
-resetQuiz();
+sessionRestored = restoreSession();
+if (!sessionRestored) resetQuiz();
 loadFromSheet();
 </script>
 </body>
