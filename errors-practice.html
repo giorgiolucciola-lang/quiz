@@ -270,9 +270,10 @@ function showEmptyState() {
 
 function renderQuiz() {
   const total = deck.length;
+  const giroLabel = sessionRound > 1 ? ` · Giro <strong>${sessionRound}</strong>` : '';
   document.getElementById('main-content').innerHTML = `
     <div class="quiz-controls">
-      <span class="info-pill">Parole da ripassare: <strong>${total}</strong></span>
+      <span class="info-pill">Parole da ripassare: <strong>${total}</strong>${giroLabel}</span>
       <button class="btn" onclick="reshuffleDeck()">🔀 Mescola di nuovo</button>
       <button class="btn danger" onclick="if(confirm('Sei sicuro di voler eliminare tutti gli errori salvati?')) clearAllErrors()">🗑 Azzera errori</button>
     </div>
@@ -487,10 +488,8 @@ function startRetryRound() {
   answered = false;
   sessionStats = { ok: 0, ko: 0, skip: 0 };
   sessionRound++;
-  // Aggiorna il contatore nella toolbar
-  const pill = document.querySelector('.info-pill');
-  if (pill) pill.innerHTML = `Parole da ripassare: <strong>${deck.length}</strong> · Giro <strong>${sessionRound}</strong>`;
-  showWord();
+  // Ricostruisce tutto il DOM (progress bar, toolbar, card) per il nuovo giro
+  renderQuiz();
 }
 
 function restartFromTop() {
