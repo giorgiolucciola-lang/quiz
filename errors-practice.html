@@ -221,6 +221,8 @@ let currentIdx = 0;
 let answered = false;
 let currentAudioText = '';
 let currentSpeakBtn = null;
+let wrongWords = []; // parole sbagliate nella sessione corrente (per il ciclo di ripetizione)
+let sessionRound = 1; // numero del giro corrente
 
 function shuffle(arr) {
   const a = [...arr];
@@ -251,6 +253,8 @@ function init() {
   currentIdx = 0;
   answered = false;
   sessionStats = { ok: 0, ko: 0, skip: 0 };
+  wrongWords = [];
+  sessionRound = 1;
   renderQuiz();
 }
 
@@ -369,6 +373,7 @@ function checkAnswer() {
     setTimeout(() => { if (answered && currentIdx < deck.length) { currentIdx++; showWord(); } }, 2000);
   } else {
     sessionStats.ko++;
+    wrongWords.push(w); // traccia per il ciclo successivo
     document.getElementById('feedback').textContent = '✗ Sbagliato';
     document.getElementById('feedback').className = 'feedback-msg wrong';
     const rev = document.getElementById('correct-reveal');
@@ -388,6 +393,9 @@ function checkAnswer() {
 function markAsCorrect() {
   sessionStats.ko = Math.max(0, sessionStats.ko - 1);
   sessionStats.ok++;
+  // rimuovi dalla lista degli sbagliati di questo giro
+  const w = deck[currentIdx];
+  wrongWords = wrongWords.filter(x => !(x.it === w.it && x.type === w.type));
   document.getElementById('feedback').textContent = '✓ Corretto!';
   document.getElementById('feedback').className = 'feedback-msg correct';
   document.getElementById('correct-reveal').innerHTML = '';
@@ -427,30 +435,70 @@ function reshuffleDeck() {
   currentIdx = 0;
   answered = false;
   sessionStats = { ok: 0, ko: 0, skip: 0 };
+  wrongWords = [];
+  sessionRound = 1;
   renderQuiz();
 }
 
 function showFinished() {
   const total = sessionStats.ok + sessionStats.ko;
   const pct = total ? Math.round(sessionStats.ok / total * 100) : 0;
-  document.getElementById('quiz-card-wrap').innerHTML = `
-    <div class="card finished-card">
-      <span class="emoji">${pct >= 80 ? '🎉' : pct >= 50 ? '💪' : '📚'}</span>
-      <div class="title">Sessione completata!</div>
-      <div class="subtitle">${sessionStats.ok} corrette · ${sessionStats.ko} sbagliate · ${sessionStats.skip} saltate · ${pct}% di precisione</div>
-      <div class="actions">
-        <button class="btn primary" onclick="reshuffleDeck()">🔀 Riprova mescolato</button>
-        <button class="btn" onclick="restartFromTop()">↩ Ricomincia dall'inizio</button>
-      </div>
-    </div>
-  `;
   document.getElementById('progress-bar').style.width = '100%';
+
+  const roundLabel = sessionRound > 1 ? ` · Giro ${sessionRound}` : '';
+
+  if (wrongWords.length === 0) {
+    // Sessione perfetta — nessun errore rimasto
+    document.getElementById('quiz-card-wrap').innerHTML = `
+      <div class="card finished-card">
+        <span class="emoji">🏆</span>
+        <div class="title">Perfetto, nessun errore!</div>
+        <div class="subtitle">${sessionStats.ok} corrette · ${sessionStats.skip} saltate${roundLabel}</div>
+        <div class="actions">
+          <button class="btn primary" onclick="init()">↩ Riparti dall'inizio</button>
+          <a href="index.html" class="btn">← App principale</a>
+        </div>
+      </div>
+    `;
+  } else {
+    // Ci sono ancora parole sbagliate — proponi un nuovo giro
+    const emoji = pct >= 80 ? '💪' : pct >= 50 ? '📚' : '😅';
+    document.getElementById('quiz-card-wrap').innerHTML = `
+      <div class="card finished-card">
+        <span class="emoji">${emoji}</span>
+        <div class="title">Sessione completata${sessionRound > 1 ? ' · Giro '+sessionRound : ''}!</div>
+        <div class="subtitle">${sessionStats.ok} corrette · ${sessionStats.ko} sbagliate · ${sessionStats.skip} saltate · ${pct}% di precisione</div>
+        <div style="margin: 16px 0; padding: 12px 16px; background: var(--red-bg); border-radius: 8px; border: 1px solid var(--red-border); font-size: 14px; color: var(--red);">
+          Hai ancora <strong>${wrongWords.length}</strong> ${wrongWords.length === 1 ? 'parola sbagliata' : 'parole sbagliate'} — vuoi riprovarle?
+        </div>
+        <div class="actions">
+          <button class="btn primary" onclick="startRetryRound()">🔁 Riprova i ${wrongWords.length} sbagliati</button>
+          <button class="btn" onclick="reshuffleDeck()">🔀 Ricomincia tutto</button>
+        </div>
+      </div>
+    `;
+  }
+}
+
+function startRetryRound() {
+  deck = shuffle(wrongWords);
+  wrongWords = [];
+  currentIdx = 0;
+  answered = false;
+  sessionStats = { ok: 0, ko: 0, skip: 0 };
+  sessionRound++;
+  // Aggiorna il contatore nella toolbar
+  const pill = document.querySelector('.info-pill');
+  if (pill) pill.innerHTML = `Parole da ripassare: <strong>${deck.length}</strong> · Giro <strong>${sessionRound}</strong>`;
+  showWord();
 }
 
 function restartFromTop() {
   currentIdx = 0;
   answered = false;
   sessionStats = { ok: 0, ko: 0, skip: 0 };
+  wrongWords = [];
+  sessionRound = 1;
   renderQuiz();
 }
 
