@@ -421,6 +421,7 @@ let RAW = [...RAW_BUILTIN];
 let stats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
 let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentSpeakBtn = null;
 let reviewSession = null; // {ok:0, ko:0, skip:0, total:0} oppure null se non in sessione errori
+let reviewWrongWords = []; // parole sbagliate nell'ultima sessione ripasso
 let sessionRestored = false; // true se all'avvio è stata ripristinata una sessione in corso da localStorage
 
 // Carica parole da Google Sheets (se pubblico)
@@ -563,6 +564,7 @@ function updateSessionBar() {
 
 function exitSession() {
   reviewSession = null;
+  reviewWrongWords = [];
   updateSessionBar();
   resetQuiz();
 }
@@ -591,6 +593,7 @@ function searchWord() {
 
 function resetQuiz() {
   reviewSession = null;
+  reviewWrongWords = [];
   updateSessionBar();
   const mode = document.getElementById('mode-select').value;
   const order = document.getElementById('order-select').value;
@@ -693,7 +696,7 @@ function checkAnswer() {
     speakCurrent();
     setTimeout(() => { if(answered) { currentIdx++; showWord(); } }, 2000);
   } else {
-    if (reviewSession) { reviewSession.ko++; updateSessionBar(); }
+    if (reviewSession) { reviewSession.ko++; updateSessionBar(); reviewWrongWords.push(w); }
     else { stats.ko++; saveStats(); }
     document.getElementById('feedback').textContent = '✗ Sbagliato';
     document.getElementById('feedback').className = 'feedback-msg wrong';
@@ -757,6 +760,16 @@ function skipWord() {
 }
 function nextWord() { currentIdx++; showWord(); }
 
+function retryWrongWords() {
+  const wrong = [...reviewWrongWords];
+  deck = shuffle(wrong);
+  currentIdx = 0; answered = false;
+  reviewSession = {ok:0, ko:0, skip:0};
+  reviewWrongWords = [];
+  updateSessionBar();
+  showWord();
+}
+
 function showFinished() {
   document.getElementById('q-label').textContent = 'Hai completato tutti i termini!';
   document.getElementById('q-word').textContent = '🎉';
@@ -768,12 +781,23 @@ function showFinished() {
   document.getElementById('fields-grid').innerHTML = '';
   document.getElementById('feedback').textContent = '';
   document.getElementById('correct-reveal').innerHTML = '';
-  document.getElementById('fix-typo-area').innerHTML = '';
   document.getElementById('check-btn').style.display = 'none';
   document.getElementById('skip-btn').style.display = 'none';
   document.getElementById('next-btn').style.display = 'none';
   document.getElementById('q-audio-btn').style.display = 'none';
   document.getElementById('progress-bar').style.width = '100%';
+
+  if (reviewSession && reviewWrongWords.length > 0) {
+    document.getElementById('fix-typo-area').innerHTML = `
+      <div style="margin-top:16px;padding:14px 16px;background:var(--red-bg);border-radius:8px;border:1px solid var(--red-border);">
+        <div style="font-size:14px;color:var(--red);margin-bottom:10px;">
+          Hai sbagliato <strong>${reviewWrongWords.length}</strong> ${reviewWrongWords.length === 1 ? 'parola' : 'parole'} — vuoi riprovarle?
+        </div>
+        <button class="btn primary" onclick="retryWrongWords()">🔁 Riprova i ${reviewWrongWords.length} sbagliati</button>
+      </div>`;
+  } else {
+    document.getElementById('fix-typo-area').innerHTML = '';
+  }
 }
 
 function updateProgress() {
@@ -976,6 +1000,7 @@ function practiceSelected() {
   deck = shuffle(deck);
   currentIdx = 0; answered = false;
   reviewSession = {ok:0, ko:0, skip:0};
+  reviewWrongWords = [];
   updateSessionBar();
   // Switch to quiz tab
   document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
