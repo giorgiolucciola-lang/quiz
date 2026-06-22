@@ -105,12 +105,28 @@
   .progress-wrap { margin-bottom: 20px; }
   .progress-bar-track {
     height: 10px; background: var(--border); border-radius: 5px;
-    overflow: hidden; display: flex; margin-bottom: 6px;
+    overflow: hidden; display: flex; margin-bottom: 4px;
   }
   .progress-seg { height: 100%; transition: width 0.4s ease; }
   .progress-seg-ok   { background: #22c55e; }
   .progress-seg-ko   { background: #ef4444; }
   .progress-seg-skip { background: #f59e0b; }
+
+  /* Barra storica sottile */
+  .progress-history-row {
+    display: flex; align-items: center; gap: 8px; margin-bottom: 6px;
+  }
+  .progress-history-track {
+    flex: 1; height: 4px; background: var(--border); border-radius: 2px;
+    overflow: hidden; display: flex;
+  }
+  .progress-history-ok   { height: 100%; background: #86efac; transition: width 0.4s ease; }
+  .progress-history-ko   { height: 100%; background: #fca5a5; transition: width 0.4s ease; }
+  .progress-history-label {
+    font-size: 11px; color: var(--text3); white-space: nowrap; flex-shrink: 0;
+  }
+  .progress-history-pct { font-weight: 600; }
+
   .progress-meta {
     display: flex; justify-content: space-between; align-items: center;
     font-size: 12px; color: var(--text3);
@@ -350,6 +366,13 @@
       <div class="progress-seg progress-seg-ko"   id="progress-ko"   style="width:0%"></div>
       <div class="progress-seg progress-seg-skip" id="progress-skip" style="width:0%"></div>
     </div>
+    <div class="progress-history-row">
+      <div class="progress-history-track">
+        <div class="progress-history-ok" id="history-ok" style="width:0%"></div>
+        <div class="progress-history-ko" id="history-ko" style="width:0%"></div>
+      </div>
+      <span class="progress-history-label">storico <span class="progress-history-pct" id="history-pct">—</span></span>
+    </div>
     <div class="progress-meta">
       <span id="progress-pos" style="font-size:12px;color:var(--text3);">0 / 0</span>
       <span class="progress-pct none" id="progress-pct">—</span>
@@ -449,6 +472,8 @@ let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentS
 let reviewSession = null; // {ok:0, ko:0, skip:0, total:0} oppure null se non in sessione errori
 let reviewWrongWords = []; // parole sbagliate nell'ultima sessione ripasso
 let sessionRestored = false; // true se all'avvio è stata ripristinata una sessione in corso da localStorage
+// Contatori della sessione corrente (si azzerano ad ogni resetQuiz/doResetQuiz)
+let sessionOk = 0, sessionKo = 0, sessionSkip = 0;
 
 // Carica parole da Google Sheets (se pubblico)
 async function loadFromSheet() {
@@ -620,6 +645,7 @@ function searchWord() {
 function resetQuiz() {
   reviewSession = null;
   reviewWrongWords = [];
+  sessionOk = 0; sessionKo = 0; sessionSkip = 0;
   updateSessionBar();
   const mode = document.getElementById('mode-select').value;
   const order = document.getElementById('order-select').value;
@@ -632,6 +658,7 @@ function resetQuiz() {
 // Ricomincia: azzera stats e forza ordine casuale
 function doResetQuiz() {
   reviewSession = null;
+  sessionOk = 0; sessionKo = 0; sessionSkip = 0;
   updateSessionBar();
   stats = {ok:0, ko:0};
   saveStats();
@@ -714,6 +741,7 @@ function checkAnswer() {
   if (allCorrect) {
     if (reviewSession) { reviewSession.ok++; updateSessionBar(); }
     else { stats.ok++; saveStats(); }
+    sessionOk++;
     document.getElementById('feedback').textContent = '✓ Corretto!';
     document.getElementById('feedback').className = 'feedback-msg correct';
     document.getElementById('q-audio-btn').style.display = 'flex';
@@ -724,6 +752,7 @@ function checkAnswer() {
   } else {
     if (reviewSession) { reviewSession.ko++; updateSessionBar(); reviewWrongWords.push(w); }
     else { stats.ko++; saveStats(); }
+    sessionKo++;
     document.getElementById('feedback').textContent = '✗ Sbagliato';
     document.getElementById('feedback').className = 'feedback-msg wrong';
     const rev = document.getElementById('correct-reveal');
@@ -757,6 +786,8 @@ function markAsCorrect() {
     stats.ok++;
     saveStats();
   }
+  sessionKo = Math.max(0, sessionKo - 1);
+  sessionOk++;
   const w = deck[currentIdx];
   // Rimuovi dall'errorLog
   errorLog = errorLog.filter(e => !(e.it === w.it && e.type === w.type));
@@ -780,6 +811,7 @@ function skipWord() {
   const w = deck[currentIdx];
   if (w && !reviewSession) saveSkipped(w);
   if (reviewSession) { reviewSession.skip++; updateSessionBar(); }
+  sessionSkip++;
   currentIdx++;
   updateNavScore();
   showWord();
@@ -842,18 +874,17 @@ function showFinished() {
 
 function updateProgress() {
   const total = deck.length;
-  // Usa stats della sessione ripasso se attiva, altrimenti stats globali
-  const ok   = reviewSession ? reviewSession.ok   : stats.ok;
-  const ko   = reviewSession ? reviewSession.ko   : stats.ko;
-  const skip = reviewSession ? reviewSession.skip : errorLog.filter(e => e.skipped).length;
 
-  const answered = ok + ko; // saltate non contano come risposte
-  const pct = answered > 0 ? Math.round(ok / answered * 100) : null;
+  // ── Barra grande: sessione corrente ──
+  const sessOk   = reviewSession ? reviewSession.ok   : sessionOk;
+  const sessKo   = reviewSession ? reviewSession.ko   : sessionKo;
+  const sessSkip = reviewSession ? reviewSession.skip : sessionSkip;
+  const sessAnswered = sessOk + sessKo;
+  const sessPct = sessAnswered > 0 ? Math.round(sessOk / sessAnswered * 100) : null;
 
-  // Larghezze proporzionali al mazzo
-  const okW   = total ? (ok   / total * 100) : 0;
-  const koW   = total ? (ko   / total * 100) : 0;
-  const skipW = total ? (skip / total * 100) : 0;
+  const okW   = total ? (sessOk   / total * 100) : 0;
+  const koW   = total ? (sessKo   / total * 100) : 0;
+  const skipW = total ? (sessSkip / total * 100) : 0;
 
   const elOk   = document.getElementById('progress-ok');
   const elKo   = document.getElementById('progress-ko');
@@ -867,14 +898,28 @@ function updateProgress() {
   if (elPos)  elPos.textContent  = `${currentIdx} / ${total}`;
 
   if (elPct) {
-    if (pct === null) {
+    if (sessPct === null) {
       elPct.textContent = '—';
       elPct.className = 'progress-pct none';
     } else {
-      elPct.textContent = pct + '%';
-      elPct.className = 'progress-pct ' + (pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'bad');
+      elPct.textContent = sessPct + '%';
+      elPct.className = 'progress-pct ' + (sessPct >= 80 ? 'good' : sessPct >= 50 ? 'mid' : 'bad');
     }
   }
+
+  // ── Barra sottile: storico globale ──
+  const histTot = stats.ok + stats.ko;
+  const histPct = histTot > 0 ? Math.round(stats.ok / histTot * 100) : null;
+  const histOkW = histTot ? (stats.ok / histTot * 100) : 0;
+  const histKoW = histTot ? (stats.ko / histTot * 100) : 0;
+
+  const elHistOk  = document.getElementById('history-ok');
+  const elHistKo  = document.getElementById('history-ko');
+  const elHistPct = document.getElementById('history-pct');
+
+  if (elHistOk)  elHistOk.style.width  = histOkW + '%';
+  if (elHistKo)  elHistKo.style.width  = histKoW + '%';
+  if (elHistPct) elHistPct.textContent = histPct !== null ? histPct + '%' : '—';
 }
 
 function speakCurrent() { if(currentAudioText) speakText(currentAudioText, document.getElementById('q-audio-btn')); }
