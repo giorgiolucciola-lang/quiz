@@ -102,8 +102,24 @@
   }
   .btn.primary:hover { background: #235a3f; border-color: #235a3f; }
 
-  .progress-wrap { height: 4px; background: var(--border); border-radius: 2px; margin-bottom: 24px; }
-  .progress-fill { height: 100%; background: var(--accent); border-radius: 2px; transition: width 0.4s ease; }
+  .progress-wrap { margin-bottom: 20px; }
+  .progress-bar-track {
+    height: 10px; background: var(--border); border-radius: 5px;
+    overflow: hidden; display: flex; margin-bottom: 6px;
+  }
+  .progress-seg { height: 100%; transition: width 0.4s ease; }
+  .progress-seg-ok   { background: #22c55e; }
+  .progress-seg-ko   { background: #ef4444; }
+  .progress-seg-skip { background: #f59e0b; }
+  .progress-meta {
+    display: flex; justify-content: space-between; align-items: center;
+    font-size: 12px; color: var(--text3);
+  }
+  .progress-pct { font-weight: 600; font-size: 13px; }
+  .progress-pct.good  { color: #16a34a; }
+  .progress-pct.mid   { color: #d97706; }
+  .progress-pct.bad   { color: #dc2626; }
+  .progress-pct.none  { color: var(--text3); }
 
   .card {
     background: var(--surface); border: 1px solid var(--border);
@@ -328,7 +344,17 @@
     </select>
     <button class="btn" onclick="doResetQuiz()">Ricomincia</button>
   </div>
-  <div class="progress-wrap"><div class="progress-fill" id="progress-bar" style="width:0%"></div></div>
+  <div class="progress-wrap">
+    <div class="progress-bar-track">
+      <div class="progress-seg progress-seg-ok"   id="progress-ok"   style="width:0%"></div>
+      <div class="progress-seg progress-seg-ko"   id="progress-ko"   style="width:0%"></div>
+      <div class="progress-seg progress-seg-skip" id="progress-skip" style="width:0%"></div>
+    </div>
+    <div class="progress-meta">
+      <span id="progress-pos" style="font-size:12px;color:var(--text3);">0 / 0</span>
+      <span class="progress-pct none" id="progress-pct">—</span>
+    </div>
+  </div>
   <div id="session-stats-bar" style="display:none; font-size:13px; color:var(--text2); margin-bottom:14px; gap:14px; align-items:center; flex-wrap:wrap;">
     <strong style="color:var(--text);">Sessione ripasso:</strong>
     <span><span class="dot dot-g" style="width:12px;height:12px;display:inline-block;vertical-align:middle;margin-right:4px;"></span><span id="sess-ok">0</span></span>
@@ -785,7 +811,21 @@ function showFinished() {
   document.getElementById('skip-btn').style.display = 'none';
   document.getElementById('next-btn').style.display = 'none';
   document.getElementById('q-audio-btn').style.display = 'none';
-  document.getElementById('progress-bar').style.width = '100%';
+  // Riempi la barra al 100% verde
+  ['progress-ok','progress-ko','progress-skip'].forEach(id => {
+    const el = document.getElementById(id); if (el) el.style.width = '0%';
+  });
+  const elOk = document.getElementById('progress-ok');
+  if (elOk) elOk.style.width = '100%';
+  const elPos = document.getElementById('progress-pos');
+  if (elPos) elPos.textContent = `${deck.length} / ${deck.length}`;
+  const elPct = document.getElementById('progress-pct');
+  if (elPct) {
+    const tot = stats.ok + stats.ko;
+    const pct = tot ? Math.round(stats.ok / tot * 100) : null;
+    elPct.textContent = pct !== null ? pct + '%' : '—';
+    elPct.className = 'progress-pct ' + (pct === null ? 'none' : pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'bad');
+  }
 
   if (reviewSession && reviewWrongWords.length > 0) {
     document.getElementById('fix-typo-area').innerHTML = `
@@ -801,7 +841,40 @@ function showFinished() {
 }
 
 function updateProgress() {
-  document.getElementById('progress-bar').style.width = (deck.length ? (currentIdx/deck.length)*100 : 0) + '%';
+  const total = deck.length;
+  // Usa stats della sessione ripasso se attiva, altrimenti stats globali
+  const ok   = reviewSession ? reviewSession.ok   : stats.ok;
+  const ko   = reviewSession ? reviewSession.ko   : stats.ko;
+  const skip = reviewSession ? reviewSession.skip : errorLog.filter(e => e.skipped).length;
+
+  const answered = ok + ko; // saltate non contano come risposte
+  const pct = answered > 0 ? Math.round(ok / answered * 100) : null;
+
+  // Larghezze proporzionali al mazzo
+  const okW   = total ? (ok   / total * 100) : 0;
+  const koW   = total ? (ko   / total * 100) : 0;
+  const skipW = total ? (skip / total * 100) : 0;
+
+  const elOk   = document.getElementById('progress-ok');
+  const elKo   = document.getElementById('progress-ko');
+  const elSkip = document.getElementById('progress-skip');
+  const elPos  = document.getElementById('progress-pos');
+  const elPct  = document.getElementById('progress-pct');
+
+  if (elOk)   elOk.style.width   = okW   + '%';
+  if (elKo)   elKo.style.width   = koW   + '%';
+  if (elSkip) elSkip.style.width = skipW + '%';
+  if (elPos)  elPos.textContent  = `${currentIdx} / ${total}`;
+
+  if (elPct) {
+    if (pct === null) {
+      elPct.textContent = '—';
+      elPct.className = 'progress-pct none';
+    } else {
+      elPct.textContent = pct + '%';
+      elPct.className = 'progress-pct ' + (pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'bad');
+    }
+  }
 }
 
 function speakCurrent() { if(currentAudioText) speakText(currentAudioText, document.getElementById('q-audio-btn')); }
