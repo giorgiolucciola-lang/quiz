@@ -223,6 +223,7 @@ let currentAudioText = '';
 let currentSpeakBtn = null;
 let wrongWords = []; // parole sbagliate nella sessione corrente (per il ciclo di ripetizione)
 let sessionRound = 1; // numero del giro corrente
+let autoAdvancing = false, advanceTimer = null; // mostra il verde ~1s e blocca l'Invio in quell'intervallo
 
 function shuffle(arr) {
   const a = [...arr];
@@ -294,6 +295,8 @@ function showWord() {
   }
 
   answered = false;
+  autoAdvancing = false;
+  if (advanceTimer) { clearTimeout(advanceTimer); advanceTimer = null; }
   const w = deck[currentIdx];
   const isVerb = w.type === 'verb';
   const inputAttrs = 'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text"';
@@ -370,8 +373,10 @@ function checkAnswer() {
     document.getElementById('feedback').textContent = '✓ Corretto!';
     document.getElementById('feedback').className = 'feedback-msg correct';
     speakCurrent();
-    // Avanza automaticamente dopo 2 secondi
-    setTimeout(() => { if (answered && currentIdx < deck.length) { currentIdx++; showWord(); } }, 2000);
+    // Mostra i campi verdi per ~1 secondo prima di avanzare.
+    // Durante questo intervallo l'Invio non salta la parola.
+    autoAdvancing = true;
+    advanceTimer = setTimeout(() => { autoAdvancing = false; if (answered && currentIdx < deck.length) { currentIdx++; showWord(); } }, 1000);
   } else {
     sessionStats.ko++;
     wrongWords.push(w); // traccia per il ciclo successivo
@@ -410,7 +415,7 @@ function handleKey(e) {
     e.preventDefault();
     if (!answered) {
       checkAnswer();
-    } else {
+    } else if (!autoAdvancing) {
       nextWord();
     }
   }
@@ -423,7 +428,7 @@ document.addEventListener('keydown', function(e) {
     const isInput = active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA');
     if (!isInput) {
       e.preventDefault();
-      if (!answered) checkAnswer(); else nextWord();
+      if (!answered) checkAnswer(); else if (!autoAdvancing) nextWord();
     }
   }
 });

@@ -584,6 +584,7 @@ let reviewSession = null;
 let reviewWrongWords = [];
 let sessionRestored = false;
 let sessionOk = 0, sessionKo = 0, sessionSkip = 0;
+let autoAdvancing = false, advanceTimer = null; // mostra il verde ~1s e blocca l'Invio in quell'intervallo
 let errorsSortDesc = true;
 let formType = 'verb';
 let editingKey = null; // chiave del termine in modifica, oppure null
@@ -888,6 +889,8 @@ function showWord() {
   if (!quizHasWords()) { refreshQuizVisibility(); return; }
   if (currentIdx >= deck.length) { clearSession(); showFinished(); return; }
   answered = false;
+  autoAdvancing = false;
+  if (advanceTimer) { clearTimeout(advanceTimer); advanceTimer = null; }
   const w = deck[currentIdx];
   const isVerb = w.type==='verb';
   document.getElementById('q-label').textContent = isVerb ? 'Scrivi le tre forme del verbo' : 'Traduci in inglese';
@@ -953,7 +956,10 @@ function checkAnswer() {
     document.getElementById('next-btn').style.display = 'inline-block';
     updateNavScore();
     speakCurrent();
-    setTimeout(() => { if(answered) { currentIdx++; showWord(); } }, 2000);
+    // Mostra i campi verdi per ~1 secondo prima di avanzare.
+    // Durante questo intervallo l'Invio non salta la parola.
+    autoAdvancing = true;
+    advanceTimer = setTimeout(() => { autoAdvancing = false; if(answered) { currentIdx++; showWord(); } }, 1000);
   } else {
     if (reviewSession) { reviewSession.ko++; updateSessionBar(); reviewWrongWords.push(w); }
     else { stats.ko++; saveStats(); }
@@ -992,7 +998,7 @@ function markAsCorrect() {
 }
 
 function handleKey(e) {
-  if (e.key === 'Enter') { e.preventDefault(); if (!answered) checkAnswer(); else nextWord(); }
+  if (e.key === 'Enter') { e.preventDefault(); if (!answered) checkAnswer(); else if (!autoAdvancing) nextWord(); }
 }
 document.addEventListener('keydown', function(e) {
   if (e.key === 'Enter') {
@@ -1001,7 +1007,7 @@ document.addEventListener('keydown', function(e) {
     const quizVisible = document.getElementById('sec-quiz').classList.contains('active');
     if (!isInput && quizVisible && quizHasWords()) {
       e.preventDefault();
-      if (!answered) checkAnswer(); else nextWord();
+      if (!answered) checkAnswer(); else if (!autoAdvancing) nextWord();
     }
   }
 });
