@@ -339,6 +339,37 @@
     border-top: 1px solid var(--border); margin-top: 40px;
   }
 
+  /* ── Font leggermente più grandi per leggibilità ──
+     NB: gli input (.field-input e .form-input) restano a 16px
+     per evitare lo zoom automatico su Safari iOS al focus */
+  .tab-btn { font-size: 14px; }
+  .card-label { font-size: 14px; }
+  .card-hint { font-size: 16px; }
+  .field-label { font-size: 14px; }
+  .feedback-msg { font-size: 17px; }
+  .correct-answer { font-size: 16px; }
+  .fix-typo-label { font-size: 14px; }
+  .form-msg { font-size: 14px; }
+  .terms-form-title { font-size: 19px; }
+  .vocab-table th { font-size: 12px; }
+  .vocab-table td { font-size: 16px; }
+  .past-cell { font-size: 14px; }
+  .error-it { font-size: 17px; }
+  .error-en { font-size: 16px; }
+  .error-forms { font-size: 14px; }
+  .error-count { font-size: 13px; }
+  .errors-day-header { font-size: 13px; }
+  .errors-day-count { font-size: 12px; }
+  .select-all-wrap { font-size: 14px; }
+  .import-help { font-size: 14px; }
+  .import-help code { font-size: 14px; }
+  .stat-label { font-size: 12px; }
+  .reset-link { font-size: 14px; }
+  .empty-state { font-size: 16px; }
+  .btn { font-size: 15px; }
+  select { font-size: 15px; }
+  .terms-toolbar input, .errors-toolbar input { font-size: 16px; }
+
   @media (max-width: 560px) {
     .fields-grid.three { grid-template-columns: 1fr; }
     .form-grid.verb, .form-grid.vocab { grid-template-columns: 1fr; }
@@ -451,14 +482,14 @@
   <div class="terms-form-card">
     <div class="terms-form-title" id="terms-form-title">Aggiungi un termine</div>
     <div class="type-toggle">
-      <button id="tt-verb" class="active" onclick="setFormType('verb')">Verbo irregolare</button>
+      <button id="tt-verb" class="active" onclick="setFormType('verb')">Verbo</button>
       <button id="tt-vocab" onclick="setFormType('vocab')">Vocabolo</button>
     </div>
     <div class="form-grid verb" id="form-grid">
-      <input class="form-input" id="in-it" placeholder="Italiano (es. andare)" autocomplete="off">
-      <input class="form-input" id="in-base" placeholder="Base form (es. go)" autocomplete="off">
-      <input class="form-input" id="in-past" placeholder="Past simple (es. went)" autocomplete="off">
-      <input class="form-input" id="in-part" placeholder="Past participle (es. gone)" autocomplete="off">
+      <input class="form-input" id="in-it" placeholder="Italiano (es. andare)" autocomplete="off" onkeydown="handleTermKey(event)">
+      <input class="form-input" id="in-base" placeholder="Base form (es. go)" autocomplete="off" onkeydown="handleTermKey(event)">
+      <input class="form-input" id="in-past" placeholder="Past simple (es. went)" autocomplete="off" onkeydown="handleTermKey(event)">
+      <input class="form-input" id="in-part" placeholder="Past participle (es. gone)" autocomplete="off" onkeydown="handleTermKey(event)">
     </div>
     <div class="form-actions">
       <button class="btn primary" onclick="submitTerm()" id="submit-term-btn">+ Aggiungi</button>
@@ -606,6 +637,11 @@ function replaceDuplicate(key) {
   WORDS = WORDS.filter(x => termKey(x.it, x.type) !== key);
   saveWords();
   submitTerm('Termine sostituito ✓'); // niente più duplicato: aggiunge il nuovo
+}
+
+// Invio nei campi del form Termini → aggiunge/salva il termine
+function handleTermKey(e) {
+  if (e.key === 'Enter') { e.preventDefault(); submitTerm(); }
 }
 
 function submitTerm(successMsg) {
