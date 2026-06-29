@@ -590,7 +590,25 @@ function showFormMsg(text, isErr) {
   if (!isErr) setTimeout(() => { if (el.textContent === text) el.textContent = ''; }, 2500);
 }
 
-function submitTerm() {
+// Messaggio "esiste già" + pulsante per eliminare/sostituire al volo il termine esistente
+function showDuplicateMsg(key) {
+  const el = document.getElementById('form-msg');
+  el.className = 'form-msg err';
+  const keySafe = key.replace(/'/g, "\\'");
+  el.innerHTML = `Questo termine esiste già. ` +
+    `<button class="btn" onclick="replaceDuplicate('${keySafe}')" ` +
+    `style="font-size:12px;padding:3px 10px;margin-left:6px;border-color:var(--red-border);color:var(--red);">` +
+    `🗑 Elimina e sostituisci</button>`;
+}
+
+// Elimina il termine esistente e reinserisce quello digitato nel form
+function replaceDuplicate(key) {
+  WORDS = WORDS.filter(x => termKey(x.it, x.type) !== key);
+  saveWords();
+  submitTerm('Termine sostituito ✓'); // niente più duplicato: aggiunge il nuovo
+}
+
+function submitTerm(successMsg) {
   const it   = document.getElementById('in-it').value.trim();
   const base = document.getElementById('in-base').value.trim();
   const past = document.getElementById('in-past').value.trim();
@@ -602,7 +620,7 @@ function submitTerm() {
   const newKey = termKey(it, formType);
   // Controllo duplicati (escludi il termine che si sta modificando)
   const dup = WORDS.find(w => termKey(w.it, w.type) === newKey && termKey(w.it, w.type) !== editingKey);
-  if (dup) { showFormMsg('Questo termine esiste già.', true); return; }
+  if (dup) { showDuplicateMsg(newKey); return; }
 
   const term = {
     it, base,
@@ -621,7 +639,7 @@ function submitTerm() {
     showFormMsg('Termine aggiornato ✓');
   } else {
     WORDS.push(term);
-    showFormMsg('Aggiunto ✓');
+    showFormMsg(successMsg || 'Aggiunto ✓');
   }
 
   saveWords();
