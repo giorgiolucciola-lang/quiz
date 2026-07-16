@@ -154,6 +154,7 @@
 
   .field-wrap { display: flex; flex-direction: column; gap: 5px; }
   .field-label { font-size: 13px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: var(--text3); }
+  .input-row { display: flex; align-items: center; gap: 8px; }
   .field-input {
     padding: 12px 16px; background: var(--surface2);
     border: 1px solid var(--border); border-radius: 8px;
@@ -206,6 +207,26 @@
   .audio-btn.playing { background: var(--accent); border-color: var(--accent); }
   .audio-btn svg { width: 12px; height: 12px; fill: var(--text2); }
   .audio-btn.playing svg { fill: #fff; }
+
+  /* Microfono per risposta vocale */
+  .mic-btn {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid var(--border2); background: var(--surface2);
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: all 0.15s;
+  }
+  .mic-btn:hover { border-color: var(--accent); }
+  .mic-btn svg { width: 15px; height: 15px; fill: var(--text2); }
+  .mic-btn:hover svg { fill: var(--accent); }
+  .mic-btn.listening { background: var(--red); border-color: var(--red); animation: mic-pulse 1.1s infinite; }
+  .mic-btn.listening svg { fill: #fff; }
+  @keyframes mic-pulse {
+    0%   { box-shadow: 0 0 0 0 rgba(192,57,43,0.45); }
+    70%  { box-shadow: 0 0 0 9px rgba(192,57,43,0); }
+    100% { box-shadow: 0 0 0 0 rgba(192,57,43,0); }
+  }
+  /* Se il browser non supporta il riconoscimento vocale, nascondi i microfoni */
+  body.no-speech .mic-btn { display: none; }
 
   /* VOCAB TABLE */
   .vocab-toolbar { display: flex; gap: 10px; margin-bottom: 18px; flex-wrap: wrap; align-items: center; }
@@ -463,6 +484,8 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
+<div class="app-footer">English Practice · v1.1 · 16 luglio 2026</div>
+
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
 
@@ -476,6 +499,49 @@ let reviewWrongWords = []; // parole sbagliate nell'ultima sessione ripasso
 let sessionRestored = false; // true se all'avvio è stata ripristinata una sessione in corso da localStorage
 // Contatori della sessione corrente (si azzerano ad ogni resetQuiz/doResetQuiz)
 let sessionOk = 0, sessionKo = 0, sessionSkip = 0;
+
+// ── Riconoscimento vocale (risposta a voce) ──
+let currentRecognition = null;
+
+function isSpeechSupported() {
+  return !!(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function startVoiceInput(fieldId, btn) {
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR) return;
+  // Se sto già ascoltando (su questo o un altro campo), fermo e riparto pulito
+  if (currentRecognition) {
+    try { currentRecognition.abort(); } catch(e) {}
+    currentRecognition = null;
+    document.querySelectorAll('.mic-btn.listening').forEach(b => b.classList.remove('listening'));
+  }
+  const recognition = new SR();
+  recognition.lang = 'en-US';
+  recognition.interimResults = false;
+  recognition.maxAlternatives = 1;
+  currentRecognition = recognition;
+  btn.classList.add('listening');
+
+  recognition.onresult = (e) => {
+    let transcript = e.results[0][0].transcript.trim();
+    transcript = transcript.replace(/[.,!?;:]+$/, ''); // rimuove punteggiatura finale
+    const el = document.getElementById(fieldId);
+    if (el && !el.disabled) { el.value = transcript; el.focus(); }
+  };
+  recognition.onerror = () => {};
+  recognition.onend = () => {
+    btn.classList.remove('listening');
+    if (currentRecognition === recognition) currentRecognition = null;
+  };
+  try { recognition.start(); } catch(e) { btn.classList.remove('listening'); }
+}
+
+function micBtnHtml(fieldId) {
+  return `<button class="mic-btn" type="button" onclick="startVoiceInput('${fieldId}', this)" title="Rispondi a voce">
+    <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-3.08A7 7 0 0019 11h-2z"/></svg>
+  </button>`;
+}
 
 // Carica parole da Google Sheets (se pubblico)
 async function loadFromSheet() {
@@ -664,11 +730,13 @@ function doResetQuiz() {
   updateSessionBar();
   stats = {ok:0, ko:0};
   saveStats();
-  // Azzera anche il contatore delle parole saltate
-  errorLog = errorLog.filter(e => !e.skipped);
+  // "Ricomincia" azzera anche gli errori: così i contatori (giuste/sbagliate/saltate)
+  // restano sempre coerenti con la sessione appena iniziata
+  errorLog = [];
   localStorage.setItem('ep_errors', JSON.stringify(errorLog));
   updateErrCount();
   updateNavScore();
+  if (document.getElementById('sec-errors').classList.contains('active')) renderErrors();
   // Forza ordine casuale indipendentemente dal selettore
   const mode = document.getElementById('mode-select').value;
   let words = mode==='verbs' ? RAW.filter(w=>w.type==='verb') : mode==='vocab' ? RAW.filter(w=>w.type==='vocab') : RAW;
@@ -690,10 +758,10 @@ function showWord() {
   grid.className = 'fields-grid ' + (isVerb ? 'three' : 'one');
   const inputAttrs = 'autocomplete="off" autocorrect="off" autocapitalize="off" spellcheck="false" inputmode="text"';
   grid.innerHTML = isVerb
-    ? `<div class="field-wrap"><div class="field-label">Base form</div><input class="field-input" id="f-base" placeholder="es. go" ${inputAttrs} onkeydown="handleKey(event)"></div>
-       <div class="field-wrap"><div class="field-label">Past simple</div><input class="field-input" id="f-past" placeholder="es. went" ${inputAttrs} onkeydown="handleKey(event)"></div>
-       <div class="field-wrap"><div class="field-label">Past participle</div><input class="field-input" id="f-part" placeholder="es. gone" ${inputAttrs} onkeydown="handleKey(event)"></div>`
-    : `<div class="field-wrap"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." ${inputAttrs} onkeydown="handleKey(event)"></div>`;
+    ? `<div class="field-wrap"><div class="field-label">Base form</div><div class="input-row"><input class="field-input" id="f-base" placeholder="es. go" ${inputAttrs} onkeydown="handleKey(event)">${micBtnHtml('f-base')}</div></div>
+       <div class="field-wrap"><div class="field-label">Past simple</div><div class="input-row"><input class="field-input" id="f-past" placeholder="es. went" ${inputAttrs} onkeydown="handleKey(event)">${micBtnHtml('f-past')}</div></div>
+       <div class="field-wrap"><div class="field-label">Past participle</div><div class="input-row"><input class="field-input" id="f-part" placeholder="es. gone" ${inputAttrs} onkeydown="handleKey(event)">${micBtnHtml('f-part')}</div></div>`
+    : `<div class="field-wrap"><div class="input-row"><input class="field-input" id="f-base" placeholder="Traduzione inglese..." ${inputAttrs} onkeydown="handleKey(event)">${micBtnHtml('f-base')}</div></div>`;
   document.getElementById('feedback').textContent = '';
   document.getElementById('feedback').className = 'feedback-msg';
   document.getElementById('correct-reveal').innerHTML = '';
@@ -718,6 +786,7 @@ function chkMulti(userVal, correct) {
 
 function checkAnswer() {
   if (answered) return;
+  if (currentRecognition) { try { currentRecognition.abort(); } catch(e) {} }
   const w = deck[currentIdx];
   const isVerb = w.type==='verb';
   let allCorrect = true;
@@ -796,6 +865,7 @@ function markAsCorrect() {
   localStorage.setItem('ep_errors', JSON.stringify(errorLog));
   updateErrCount();
   updateNavScore();
+  if (document.getElementById('sec-errors').classList.contains('active')) renderErrors();
   document.getElementById('feedback').textContent = '✓ Corretto!';
   document.getElementById('feedback').className = 'feedback-msg correct';
   document.getElementById('correct-reveal').innerHTML = '';
@@ -810,6 +880,7 @@ function handleKey(e) {
   }
 }
 function skipWord() {
+  if (currentRecognition) { try { currentRecognition.abort(); } catch(e) {} }
   const w = deck[currentIdx];
   if (w && !reviewSession) saveSkipped(w);
   if (reviewSession) { reviewSession.skip++; updateSessionBar(); }
@@ -1172,6 +1243,7 @@ function showSection(name, btn) {
 
 // Init
 window.speechSynthesis.onvoiceschanged = () => {};
+if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
 updateErrCount();
 sessionRestored = restoreSession();
