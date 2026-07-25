@@ -1297,7 +1297,7 @@ loadFromSheet();
 <script type="module">
 import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
 import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
-import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+import { getFirestore, doc, setDoc, getDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
 
 const firebaseConfig = {
   apiKey: "AIzaSyDOhuS5X8xfcK1w_cxqykSDvTyhium6uCo",
@@ -1316,7 +1316,7 @@ const SYNC_DOC_PATH = ['sync', 'giorgio_english_practice'];
 const syncDotEl   = document.getElementById('sync-dot');
 const syncLabelEl = document.getElementById('sync-label');
 function setSyncUI(state) {
-  const colors = { connecting:'#d0ccc4', synced:'#2a7a4a', offline:'#c0392b', saving:'#d4700a' };
+  const colors = { connecting:'#d0ccc4', synced:'#22c55e', offline:'#c0392b', saving:'#d4700a' };
   const labels = { connecting:'sync...', synced:'sincronizzato', offline:'offline', saving:'salvataggio...' };
   if (syncDotEl)   syncDotEl.style.background = colors[state] || '#d0ccc4';
   if (syncLabelEl) syncLabelEl.textContent = labels[state] || '';
@@ -1402,6 +1402,28 @@ function onRemoteData(data, exists) {
   setSyncUI('synced');
 }
 
+// Rilettura manuale "una tantum" dal cloud: serve perché su iOS Safari, quando
+// la pagina va in background o lo schermo si blocca, il listener onSnapshot
+// può restare "addormentato" e non ricevere aggiornamenti fino al prossimo
+// evento di rete. Richiamando questa funzione ogni volta che la pagina torna
+// visibile, ci assicuriamo di recuperare comunque l'ultimo stato salvato
+// dall'altro dispositivo, anche se il listener in tempo reale si è perso.
+async function forceRefreshFromCloud() {
+  if (!docRef) return;
+  try {
+    const snap = await getDoc(docRef);
+    onRemoteData(snap.data(), snap.exists());
+  } catch (e) {
+    console.error('[Sync] Errore rilettura manuale Firestore:', e);
+  }
+}
+
+document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState === 'visible') forceRefreshFromCloud();
+});
+window.addEventListener('pageshow', () => forceRefreshFromCloud());
+window.addEventListener('focus', () => forceRefreshFromCloud());
+
 try {
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
@@ -1417,6 +1439,9 @@ try {
       console.error('[Sync] Errore ascolto Firestore:', err);
       setSyncUI('offline');
     });
+    // Al momento della connessione, fai subito anche una lettura manuale:
+    // copre il caso in cui onSnapshot impieghi qualche istante ad attivarsi.
+    forceRefreshFromCloud();
   });
 
   signInAnonymously(auth).catch((e) => {
