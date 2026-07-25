@@ -687,6 +687,30 @@ function updateSessionBar() {
 }
 
 
+// Applica in tempo reale una sessione di quiz arrivata dall'altro dispositivo
+// (via sincronizzazione cloud), senza bisogno di ricaricare la pagina.
+// Se la sessione è identica a quella corrente non fa nulla, per non
+// interrompere una risposta che si sta scrivendo in questo momento.
+function applyRemoteSession(session) {
+  if (!session || !Array.isArray(session.deck) || session.deck.length === 0) return;
+  if (typeof session.currentIdx !== 'number' || session.currentIdx < 0 || session.currentIdx >= session.deck.length) return;
+
+  const sameDeck   = JSON.stringify(deck) === JSON.stringify(session.deck);
+  const samePos    = currentIdx === session.currentIdx;
+  const sameReview = JSON.stringify(reviewSession || null) === JSON.stringify(session.reviewSession || null);
+  if (sameDeck && samePos && sameReview) return;
+
+  if (currentRecognition) { try { currentRecognition.abort(); } catch(e) {} }
+  if (session.mode)  document.getElementById('mode-select').value  = session.mode;
+  if (session.order) document.getElementById('order-select').value = session.order;
+  deck = session.deck;
+  currentIdx = session.currentIdx;
+  reviewSession = session.reviewSession || null;
+  answered = false;
+  updateSessionBar();
+  showWord();
+}
+
 function exitSession() {
   reviewSession = null;
   reviewWrongWords = [];
@@ -1369,21 +1393,12 @@ function onRemoteData(data, exists) {
   const statsSection = document.getElementById('sec-stats');
   if (statsSection && statsSection.classList.contains('active') && typeof updateNavScore === 'function') updateNavScore();
 
-  // La sessione di quiz in corso (mazzo, posizione) viene applicata solo
-  // all'apertura dell'app, per non interrompere un quiz già in corso:
-  // ricarica la pagina una sola volta per riprendere esattamente da dove
-  // avevi lasciato su un altro dispositivo.
-  if (!startupHandled) {
-    startupHandled = true;
-    if (data.session) {
-      localStorage.setItem('ep_quiz_progress', JSON.stringify(data.session));
-      if (!sessionStorage.getItem('__ep_synced_reload')) {
-        sessionStorage.setItem('__ep_synced_reload', '1');
-        location.reload();
-        return;
-      }
-    }
+  // La sessione di quiz in corso (mazzo, posizione, punteggio ripasso)
+  // viene applicata subito in tempo reale, senza ricaricare la pagina.
+  if (data.session && typeof applyRemoteSession === 'function') {
+    applyRemoteSession(data.session);
   }
+  startupHandled = true;
   setSyncUI('synced');
 }
 
