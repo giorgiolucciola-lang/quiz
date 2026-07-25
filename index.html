@@ -351,6 +351,10 @@
     <button class="tab-btn" onclick="showSection('stats', this)">Statistiche</button>
   </div>
   <div id="word-count" style="font-size:12px;color:var(--text3);font-family:monospace;">caricamento...</div>
+  <div id="sync-status" style="font-size:11px;color:var(--text3);display:flex;align-items:center;gap:5px;" title="Sincronizzazione tra dispositivi">
+    <span id="sync-dot" style="width:8px;height:8px;border-radius:50%;background:#d0ccc4;display:inline-block;"></span>
+    <span id="sync-label">sync...</span>
+  </div>
   <div class="score-pill-group">
     <div class="score-pill">
       <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
@@ -538,7 +542,7 @@ function startVoiceInput(fieldId, btn) {
 }
 
 function micBtnHtml(fieldId) {
-  return `<button class="mic-btn" type="button" onclick="startVoiceInput('${fieldId}', this)" title="Rispondi a voce">
+  return `<button class="mic-btn" type="button" tabindex="-1" onclick="startVoiceInput('${fieldId}', this)" title="Rispondi a voce">
     <svg viewBox="0 0 24 24"><path d="M12 14a3 3 0 003-3V5a3 3 0 10-6 0v6a3 3 0 003 3zm5-3a5 5 0 01-10 0H5a7 7 0 006 6.92V21h2v-3.08A7 7 0 0019 11h-2z"/></svg>
   </button>`;
 }
@@ -645,10 +649,12 @@ function saveSession() {
       reviewSession: reviewSession
     }));
   } catch(e) { /* localStorage piena o non disponibile: ignora */ }
+  scheduleCloudSync();
 }
 
 function clearSession() {
   localStorage.removeItem(SESSION_KEY);
+  scheduleCloudSync();
 }
 
 function restoreSession() {
@@ -733,7 +739,7 @@ function doResetQuiz() {
   // "Ricomincia" azzera anche gli errori: così i contatori (giuste/sbagliate/saltate)
   // restano sempre coerenti con la sessione appena iniziata
   errorLog = [];
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog)); scheduleCloudSync();
   updateErrCount();
   updateNavScore();
   if (document.getElementById('sec-errors').classList.contains('active')) renderErrors();
@@ -862,7 +868,7 @@ function markAsCorrect() {
   const w = deck[currentIdx];
   // Rimuovi dall'errorLog
   errorLog = errorLog.filter(e => !(e.it === w.it && e.type === w.type));
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog)); scheduleCloudSync();
   updateErrCount();
   updateNavScore();
   if (document.getElementById('sec-errors').classList.contains('active')) renderErrors();
@@ -1038,7 +1044,13 @@ function renderVocabTable() {
   }).join('');
 }
 
-function saveStats() { localStorage.setItem('ep_stats2', JSON.stringify(stats)); }
+function saveStats() { localStorage.setItem('ep_stats2', JSON.stringify(stats)); scheduleCloudSync(); }
+
+// Ponte verso il modulo di sincronizzazione cloud (Firebase), caricato più sotto.
+// Finché il modulo non è pronto, questa funzione non fa nulla (nessun errore).
+function scheduleCloudSync() {
+  if (typeof window.__cloudSyncImpl === 'function') window.__cloudSyncImpl();
+}
 
 // ERRORS
 let errorLog = JSON.parse(localStorage.getItem('ep_errors') || '[]');
@@ -1062,7 +1074,7 @@ function saveSkipped(w) {
       lastDate: new Date().toLocaleDateString('it-IT')
     });
   }
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog)); scheduleCloudSync();
   updateErrCount();
 }
 
@@ -1080,7 +1092,7 @@ function saveError(w) {
       lastDate: new Date().toLocaleDateString('it-IT')
     });
   }
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog)); scheduleCloudSync();
   updateErrCount();
 }
 
@@ -1163,7 +1175,7 @@ function deleteOldErrors() {
     return d >= cutoff;
   });
   const removed = before - errorLog.length;
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog)); scheduleCloudSync();
   updateErrCount();
   renderErrors();
   if (removed > 0) alert(`Eliminati ${removed} errori più vecchi di 10 giorni.`);
@@ -1204,7 +1216,7 @@ function practiceSelected() {
 function resetErrors() {
   if (!confirm('Eliminare tutti gli errori salvati?')) return;
   errorLog = [];
-  localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  localStorage.setItem('ep_errors', JSON.stringify(errorLog)); scheduleCloudSync();
   updateErrCount();
   renderErrors();
 }
@@ -1249,6 +1261,157 @@ updateErrCount();
 sessionRestored = restoreSession();
 if (!sessionRestored) resetQuiz();
 loadFromSheet();
+</script>
+
+<!-- ─────────────────────────────────────────────────────────────
+     SINCRONIZZAZIONE CLOUD (Firebase) — Mac ↔ iPhone
+     Statistiche ed errori si aggiornano in tempo reale su tutti i
+     dispositivi; la sessione di quiz in corso si riprende all'apertura.
+     Il localStorage resta comunque la fonte "veloce" locale: l'app
+     funziona normalmente anche offline o se il cloud non risponde.
+     ───────────────────────────────────────────────────────────── -->
+<script type="module">
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-app.js";
+import { getAuth, signInAnonymously, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-auth.js";
+import { getFirestore, doc, setDoc, onSnapshot } from "https://www.gstatic.com/firebasejs/10.12.2/firebase-firestore.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSyDOhuS5X8xfcK1w_cxqykSDvTyhium6uCo",
+  authDomain: "english-practice-87950.firebaseapp.com",
+  projectId: "english-practice-87950",
+  storageBucket: "english-practice-87950.firebasestorage.app",
+  messagingSenderId: "813156932273",
+  appId: "1:813156932273:web:e7d80f72647b739a45a090"
+};
+
+// Documento unico e fisso: tutti i dispositivi di Giorgio leggono/scrivono
+// sempre lo stesso documento, indipendentemente dall'account anonimo
+// generato da ciascun browser (che altrimenti sarebbe diverso per ognuno).
+const SYNC_DOC_PATH = ['sync', 'giorgio_english_practice'];
+
+const syncDotEl   = document.getElementById('sync-dot');
+const syncLabelEl = document.getElementById('sync-label');
+function setSyncUI(state) {
+  const colors = { connecting:'#d0ccc4', synced:'#2a7a4a', offline:'#c0392b', saving:'#d4700a' };
+  const labels = { connecting:'sync...', synced:'sincronizzato', offline:'offline', saving:'salvataggio...' };
+  if (syncDotEl)   syncDotEl.style.background = colors[state] || '#d0ccc4';
+  if (syncLabelEl) syncLabelEl.textContent = labels[state] || '';
+}
+
+let docRef = null;
+let pushTimer = null;
+let lastKnownUpdateAt = parseInt(localStorage.getItem('__ep_sync_at') || '0', 10);
+let startupHandled = false;
+
+function markLocalUpdate(ts) {
+  lastKnownUpdateAt = ts;
+  localStorage.setItem('__ep_sync_at', String(ts));
+}
+
+async function pushNow() {
+  if (!docRef) return;
+  const ts = Date.now();
+  const payload = {
+    stats:   JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}'),
+    errors:  JSON.parse(localStorage.getItem('ep_errors') || '[]'),
+    session: JSON.parse(localStorage.getItem('ep_quiz_progress') || 'null'),
+    updatedAt: ts
+  };
+  markLocalUpdate(ts);
+  try {
+    setSyncUI('saving');
+    await setDoc(docRef, payload);
+    setSyncUI('synced');
+  } catch (e) {
+    console.error('[Sync] Errore invio a Firestore:', e);
+    setSyncUI('offline');
+  }
+}
+
+// Esposta al codice principale (script classico) tramite window,
+// perché uno script "module" ha uno scope separato per le proprie funzioni.
+window.__cloudSyncImpl = function() {
+  if (!docRef) return;
+  clearTimeout(pushTimer);
+  pushTimer = setTimeout(pushNow, 900);
+};
+
+function onRemoteData(data, exists) {
+  if (!exists) {
+    // Nessun documento cloud ancora: questo è il primo dispositivo che sincronizza.
+    // Carichiamo subito lo stato locale sul cloud.
+    setSyncUI('synced');
+    pushNow();
+    startupHandled = true;
+    return;
+  }
+  if (!data || typeof data.updatedAt !== 'number' || data.updatedAt <= lastKnownUpdateAt) {
+    setSyncUI('synced');
+    startupHandled = true;
+    return;
+  }
+
+  markLocalUpdate(data.updatedAt);
+
+  // Statistiche ed errori: applicati subito, live, senza ricaricare la pagina.
+  if (data.stats) {
+    stats = data.stats;
+    localStorage.setItem('ep_stats2', JSON.stringify(stats));
+  }
+  if (data.errors) {
+    errorLog = data.errors;
+    localStorage.setItem('ep_errors', JSON.stringify(errorLog));
+  }
+  if (typeof updateNavScore === 'function') updateNavScore();
+  if (typeof updateErrCount === 'function') updateErrCount();
+  const errSection = document.getElementById('sec-errors');
+  if (errSection && errSection.classList.contains('active') && typeof renderErrors === 'function') renderErrors();
+  const statsSection = document.getElementById('sec-stats');
+  if (statsSection && statsSection.classList.contains('active') && typeof updateNavScore === 'function') updateNavScore();
+
+  // La sessione di quiz in corso (mazzo, posizione) viene applicata solo
+  // all'apertura dell'app, per non interrompere un quiz già in corso:
+  // ricarica la pagina una sola volta per riprendere esattamente da dove
+  // avevi lasciato su un altro dispositivo.
+  if (!startupHandled) {
+    startupHandled = true;
+    if (data.session) {
+      localStorage.setItem('ep_quiz_progress', JSON.stringify(data.session));
+      if (!sessionStorage.getItem('__ep_synced_reload')) {
+        sessionStorage.setItem('__ep_synced_reload', '1');
+        location.reload();
+        return;
+      }
+    }
+  }
+  setSyncUI('synced');
+}
+
+try {
+  const app = initializeApp(firebaseConfig);
+  const auth = getAuth(app);
+  const db = getFirestore(app);
+  setSyncUI('connecting');
+
+  onAuthStateChanged(auth, (user) => {
+    if (!user) return;
+    docRef = doc(db, ...SYNC_DOC_PATH);
+    onSnapshot(docRef, (snap) => {
+      onRemoteData(snap.data(), snap.exists());
+    }, (err) => {
+      console.error('[Sync] Errore ascolto Firestore:', err);
+      setSyncUI('offline');
+    });
+  });
+
+  signInAnonymously(auth).catch((e) => {
+    console.error('[Sync] Errore accesso anonimo:', e);
+    setSyncUI('offline');
+  });
+} catch (e) {
+  console.error('[Sync] Errore inizializzazione Firebase:', e);
+  setSyncUI('offline');
+}
 </script>
 </body>
 </html>
