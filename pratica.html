@@ -987,6 +987,9 @@ function markAsCorrect() {
   else { stats.ko = Math.max(0, stats.ko - 1); stats.ok++; saveStats(); }
   sessionKo = Math.max(0, sessionKo - 1); sessionOk++;
   const w = deck[currentIdx];
+  // Rimuovi anche dalla lista degli sbagliati di questa sessione di ripasso,
+  // altrimenti il riepilogo finale propone di "riprovare" anche parole già corrette
+  reviewWrongWords = reviewWrongWords.filter(x => !(x.it === w.it && x.type === w.type));
   errorLog = errorLog.filter(e => !(e.it === w.it && e.type === w.type));
   saveErrors();
   updateErrCount(); updateNavScore();
