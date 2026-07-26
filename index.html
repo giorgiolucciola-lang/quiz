@@ -488,7 +488,7 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.1 · 16 luglio 2026</div>
+<div class="app-footer">English Practice · v1.2 · 26 luglio 2026</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -970,8 +970,9 @@ function showFinished() {
   if (elPos) elPos.textContent = `${deck.length} / ${deck.length}`;
   const elPct = document.getElementById('progress-pct');
   if (elPct) {
-    const tot = stats.ok + stats.ko;
-    const pct = tot ? Math.round(stats.ok / tot * 100) : null;
+    const pctSrc = reviewSession || stats;
+    const tot = pctSrc.ok + pctSrc.ko;
+    const pct = tot ? Math.round(pctSrc.ok / tot * 100) : null;
     elPct.textContent = pct !== null ? pct + '%' : '—';
     elPct.className = 'progress-pct ' + (pct === null ? 'none' : pct >= 80 ? 'good' : pct >= 50 ? 'mid' : 'bad');
   }
