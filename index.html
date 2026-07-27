@@ -501,6 +501,15 @@ let deck = [], currentIdx = 0, answered = false, currentAudioText = '', currentS
 let reviewSession = null; // {ok:0, ko:0, skip:0, total:0} oppure null se non in sessione errori
 let lastLocalInteraction = 0; // timestamp dell'ultima azione locale (risposta, salto, ecc.)
 function markLocalInteraction() { lastLocalInteraction = Date.now(); }
+// Conta anche la digitazione nei campi di risposta come interazione locale:
+// altrimenti, mentre si sta ancora scrivendo (prima di premere Invio/Controlla),
+// un aggiornamento in arrivo dal cloud può ricostruire la card e cancellare
+// quanto scritto fino a quel momento.
+document.addEventListener('input', function(e) {
+  if (e.target && e.target.classList && e.target.classList.contains('field-input')) {
+    markLocalInteraction();
+  }
+});
 let reviewWrongWords = []; // parole sbagliate nell'ultima sessione ripasso
 let sessionRestored = false; // true se all'avvio è stata ripristinata una sessione in corso da localStorage
 // Contatori della sessione corrente (si azzerano ad ogni resetQuiz/doResetQuiz)
@@ -696,9 +705,14 @@ function updateSessionBar() {
 function applyRemoteSession(session) {
   if (!session || !Array.isArray(session.deck) || session.deck.length === 0) return;
   if (typeof session.currentIdx !== 'number' || session.currentIdx < 0 || session.currentIdx >= session.deck.length) return;
-  // Se ho appena interagito localmente (risposto, saltato, ecc.), ignoro per qualche secondo
-  // gli aggiornamenti remoti: evita che l'eco della mia stessa scrittura faccia
-  // "sfarfallare" la card mentre sto ancora guardando il risultato.
+  // Se sto scrivendo in un campo di risposta (non ancora inviata con Invio/Controlla),
+  // non toccare la card: altrimenti l'aggiornamento remoto la ricostruisce da zero
+  // e cancella quello che sto scrivendo.
+  const activeEl = document.activeElement;
+  if (!answered && activeEl && activeEl.classList && activeEl.classList.contains('field-input')) return;
+  // Se ho appena interagito localmente (risposto, saltato, scritto qualcosa, ecc.),
+  // ignoro per qualche secondo gli aggiornamenti remoti: evita che l'eco della mia
+  // stessa scrittura faccia "sfarfallare" la card mentre sto ancora guardando il risultato.
   if (Date.now() - lastLocalInteraction < 4000) return;
 
   const sameDeck   = JSON.stringify(deck) === JSON.stringify(session.deck);
