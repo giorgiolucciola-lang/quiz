@@ -488,7 +488,7 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.2 · 26 luglio 2026</div>
+<div class="app-footer">English Practice · v1.3 · 9 agosto 2026 · fix sync posizione quiz</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -1317,6 +1317,7 @@ function showSection(name, btn) {
 }
 
 // Init
+console.log('[Version] English Practice v1.3 · 9 agosto 2026 · fix sync posizione quiz');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
