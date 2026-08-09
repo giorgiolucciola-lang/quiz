@@ -710,10 +710,14 @@ function applyRemoteSession(session) {
   // e cancella quello che sto scrivendo.
   const activeEl = document.activeElement;
   if (!answered && activeEl && activeEl.classList && activeEl.classList.contains('field-input')) return;
-  // Se ho appena interagito localmente (risposto, saltato, scritto qualcosa, ecc.),
-  // ignoro per qualche secondo gli aggiornamenti remoti: evita che l'eco della mia
-  // stessa scrittura faccia "sfarfallare" la card mentre sto ancora guardando il risultato.
-  if (Date.now() - lastLocalInteraction < 4000) return;
+  // NB: non ignoriamo più gli aggiornamenti remoti solo perché sono arrivati a ridosso
+  // di un'interazione locale (risposta, salto, ecc.). Il controllo qui sotto
+  // (sameDeck/samePos/sameReview) basta già da solo a evitare lo "sfarfallio":
+  // se l'aggiornamento remoto è semplicemente l'eco della mia stessa scrittura,
+  // risulterà identico allo stato attuale e verrà ignorato comunque.
+  // Ignorare in base al solo tempo trascorso, invece, bloccava anche gli
+  // aggiornamenti genuinamente diversi arrivati dall'altro dispositivo,
+  // causando il disallineamento Mac↔iPhone sulla parola corrente.
 
   const sameDeck   = JSON.stringify(deck) === JSON.stringify(session.deck);
   const samePos    = currentIdx === session.currentIdx;
