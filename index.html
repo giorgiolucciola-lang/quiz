@@ -1102,6 +1102,12 @@ function saveStats() { localStorage.setItem('ep_stats2', JSON.stringify(stats));
 // Ponte verso il modulo di sincronizzazione cloud (Firebase), caricato più sotto.
 // Finché il modulo non è pronto, questa funzione non fa nulla (nessun errore).
 function scheduleCloudSync() {
+  // Non inviare nulla al cloud finché non abbiamo prima controllato se lì
+  // c'è già una sessione più recente: altrimenti, all'apertura dell'app,
+  // la sessione locale (magari vecchia) rischia di sovrascrivere quella
+  // corretta arrivata dall'altro dispositivo, causando disallineamento
+  // tra Mac e iPhone (es. parole diverse nel quiz pur risultando "sincronizzati").
+  if (!window.__cloudSyncReady) return;
   if (typeof window.__cloudSyncImpl === 'function') window.__cloudSyncImpl();
 }
 
@@ -1342,6 +1348,13 @@ const firebaseConfig = {
 // generato da ciascun browser (che altrimenti sarebbe diverso per ognuno).
 const SYNC_DOC_PATH = ['sync', 'giorgio_english_practice'];
 
+// Finché non abbiamo controllato lo stato sul cloud, blocchiamo ogni invio
+// locale (vedi scheduleCloudSync in alto): evita che una sessione vecchia
+// salvata in locale sovrascriva quella più recente dell'altro dispositivo
+// appena si apre l'app.
+window.__cloudSyncReady = false;
+setTimeout(() => { window.__cloudSyncReady = true; }, 6000); // rete di sicurezza: se il cloud non risponde entro 6s, sblocca comunque
+
 const syncDotEl   = document.getElementById('sync-dot');
 const syncLabelEl = document.getElementById('sync-label');
 function setSyncUI(state) {
@@ -1390,6 +1403,7 @@ window.__cloudSyncImpl = function() {
 };
 
 function onRemoteData(data, exists) {
+  window.__cloudSyncReady = true;
   if (!exists) {
     // Nessun documento cloud ancora: questo è il primo dispositivo che sincronizza.
     // Carichiamo subito lo stato locale sul cloud.
@@ -1476,10 +1490,12 @@ try {
   signInAnonymously(auth).catch((e) => {
     console.error('[Sync] Errore accesso anonimo:', e);
     setSyncUI('offline');
+    window.__cloudSyncReady = true;
   });
 } catch (e) {
   console.error('[Sync] Errore inizializzazione Firebase:', e);
   setSyncUI('offline');
+  window.__cloudSyncReady = true;
 }
 </script>
 </body>
