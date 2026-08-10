@@ -488,7 +488,7 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.5 · 10 agosto 2026 · fix sync: Mac non riceveva più stato più recente dal cloud</div>
+<div class="app-footer">English Practice · v1.6 · 10 agosto 2026 · fix sfarfallio: blocca ricostruzione card durante l'attesa di "Avanti"</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -711,6 +711,13 @@ function applyRemoteSession(session) {
   const activeEl = document.activeElement;
   const hasTypedContent = !!(activeEl && activeEl.classList && activeEl.classList.contains('field-input') && activeEl.value.trim().length > 0);
   if (!answered && hasTypedContent) return;
+  // Se ho già risposto a questa domanda (giusta o sbagliata) e sto ancora
+  // guardando il feedback in attesa di premere "Avanti", non permettere a
+  // nessun aggiornamento remoto di ricostruire la card: altrimenti un
+  // aggiornamento cloud che arriva in quella finestra (es. eco della mia
+  // stessa scrittura non ancora coerente, o l'altro dispositivo aperto)
+  // resetta la card e produce lo sfarfallio con il feedback che cambia colore.
+  if (answered) return;
   // NB: non ignoriamo più gli aggiornamenti remoti solo perché sono arrivati a ridosso
   // di un'interazione locale (risposta, salto, ecc.). Il controllo qui sotto
   // (sameDeck/samePos/sameReview) basta già da solo a evitare lo "sfarfallio":
@@ -1318,7 +1325,7 @@ function showSection(name, btn) {
 }
 
 // Init
-console.log('[Version] English Practice v1.5 · 10 agosto 2026 · fix sync: Mac non riceveva più stato più recente dal cloud');
+console.log('[Version] English Practice v1.6 · 10 agosto 2026 · fix sfarfallio: blocca ricostruzione card durante l\'attesa di "Avanti"');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
