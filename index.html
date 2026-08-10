@@ -488,7 +488,7 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.4 · 10 agosto 2026 · fix sync bloccato da focus automatico</div>
+<div class="app-footer">English Practice · v1.5 · 10 agosto 2026 · fix sync: Mac non riceveva più stato più recente dal cloud</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -1112,7 +1112,7 @@ function scheduleCloudSync() {
   // la sessione locale (magari vecchia) rischia di sovrascrivere quella
   // corretta arrivata dall'altro dispositivo, causando disallineamento
   // tra Mac e iPhone (es. parole diverse nel quiz pur risultando "sincronizzati").
-  if (!window.__cloudSyncReady) return;
+  if (!window.__cloudSyncReady || !window.__startupHandled) return;
   if (typeof window.__cloudSyncImpl === 'function') window.__cloudSyncImpl();
 }
 
@@ -1318,7 +1318,7 @@ function showSection(name, btn) {
 }
 
 // Init
-console.log('[Version] English Practice v1.4 · 10 agosto 2026 · fix sync bloccato da focus automatico');
+console.log('[Version] English Practice v1.5 · 10 agosto 2026 · fix sync: Mac non riceveva più stato più recente dal cloud');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
@@ -1359,7 +1359,14 @@ const SYNC_DOC_PATH = ['sync', 'giorgio_english_practice'];
 // salvata in locale sovrascriva quella più recente dell'altro dispositivo
 // appena si apre l'app.
 window.__cloudSyncReady = false;
-setTimeout(() => { window.__cloudSyncReady = true; }, 6000); // rete di sicurezza: se il cloud non risponde entro 6s, sblocca comunque
+// Nuovo: finché non abbiamo applicato almeno una volta lo stato reale letto dal cloud
+// (onRemoteData completato), non permettiamo NESSUN invio locale. Questo evita che,
+// al semplice apertura/refresh della pagina, la sessione vecchia salvata in locale
+// venga rispedita al cloud con un timestamp "fresco" che sovrascrive per errore
+// uno stato più recente arrivato da un altro dispositivo (bug che bloccava il Mac
+// sempre sulla stessa parola nonostante i refresh).
+window.__startupHandled = false;
+setTimeout(() => { window.__cloudSyncReady = true; window.__startupHandled = true; }, 6000); // rete di sicurezza: se il cloud non risponde entro 6s, sblocca comunque
 
 const syncDotEl   = document.getElementById('sync-dot');
 const syncLabelEl = document.getElementById('sync-label');
@@ -1373,7 +1380,7 @@ function setSyncUI(state) {
 let docRef = null;
 let pushTimer = null;
 let lastKnownUpdateAt = parseInt(localStorage.getItem('__ep_sync_at') || '0', 10);
-let startupHandled = false;
+
 
 function markLocalUpdate(ts) {
   lastKnownUpdateAt = ts;
@@ -1415,12 +1422,12 @@ function onRemoteData(data, exists) {
     // Carichiamo subito lo stato locale sul cloud.
     setSyncUI('synced');
     pushNow();
-    startupHandled = true;
+    window.__startupHandled = true;
     return;
   }
   if (!data || typeof data.updatedAt !== 'number' || data.updatedAt <= lastKnownUpdateAt) {
     setSyncUI('synced');
-    startupHandled = true;
+    window.__startupHandled = true;
     return;
   }
 
@@ -1447,7 +1454,7 @@ function onRemoteData(data, exists) {
   if (data.session && typeof applyRemoteSession === 'function') {
     applyRemoteSession(data.session);
   }
-  startupHandled = true;
+  window.__startupHandled = true;
   setSyncUI('synced');
 }
 
