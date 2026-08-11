@@ -488,7 +488,7 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.7 · 10 agosto 2026 · fix: non cancella più i campi verbo già scritti passando al successivo con Tab</div>
+<div class="app-footer">English Practice · v1.8 · 11 agosto 2026 · fix: i contatori e la posizione nel quiz non tornano più indietro dopo problemi di rete tra Mac e iPhone</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -734,6 +734,11 @@ function applyRemoteSession(session) {
   // causando il disallineamento Mac↔iPhone sulla parola corrente.
 
   const sameDeck   = JSON.stringify(deck) === JSON.stringify(session.deck);
+  // Se il mazzo è lo stesso ma la posizione ricevuta è più indietro di quella
+  // attuale, la ignoriamo: è quasi certamente un aggiornamento "in ritardo"
+  // (es. arrivato dopo una disconnessione di rete) e applicarlo farebbe
+  // ripetere 2-3 domande già completate.
+  if (sameDeck && session.currentIdx < currentIdx) return;
   const samePos    = currentIdx === session.currentIdx;
   const sameReview = JSON.stringify(reviewSession || null) === JSON.stringify(session.reviewSession || null);
   if (sameDeck && samePos && sameReview) return;
@@ -799,6 +804,7 @@ function doResetQuiz() {
   sessionOk = 0; sessionKo = 0; sessionSkip = 0;
   updateSessionBar();
   stats = {ok:0, ko:0};
+  if (typeof window.__markStatsCanonical === 'function') window.__markStatsCanonical(stats);
   saveStats();
   // "Ricomincia" azzera anche gli errori: così i contatori (giuste/sbagliate/saltate)
   // restano sempre coerenti con la sessione appena iniziata
@@ -1319,7 +1325,9 @@ function updateNavScore() {
 }
 function resetStats() {
   if(!confirm('Azzerare le statistiche?')) return;
-  stats={ok:0,ko:0}; saveStats(); updateNavScore();
+  stats={ok:0,ko:0};
+  if (typeof window.__markStatsCanonical === 'function') window.__markStatsCanonical(stats);
+  saveStats(); updateNavScore();
 }
 function showSection(name, btn) {
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
@@ -1331,7 +1339,7 @@ function showSection(name, btn) {
 }
 
 // Init
-console.log('[Version] English Practice v1.7 · 10 agosto 2026 · fix: non cancella più i campi verbo già scritti passando al successivo con Tab');
+console.log('[Version] English Practice v1.8 · 11 agosto 2026 · fix: i contatori e la posizione nel quiz non tornano più indietro dopo problemi di rete tra Mac e iPhone');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
@@ -1371,6 +1379,22 @@ const SYNC_DOC_PATH = ['sync', 'giorgio_english_practice'];
 // locale (vedi scheduleCloudSync in alto): evita che una sessione vecchia
 // salvata in locale sovrascriva quella più recente dell'altro dispositivo
 // appena si apre l'app.
+// ── Merge sicuro dei contatori (mai tornare indietro) ──
+// Invece di sovrascrivere i contatori con l'ultimo valore ricevuto (che in caso
+// di problemi di rete può essere quello VECCHIO di un dispositivo rimasto
+// scollegato), prendiamo sempre il massimo tra il valore locale e quello remoto.
+// Così un aggiornamento "in ritardo" non può mai far tornare indietro il punteggio.
+// Fa eccezione il reset esplicito (Ricomincia / Azzera statistiche), che aggiorna
+// anche il riferimento "ultimo remoto conosciuto" per propagare correttamente lo zero.
+function mergeStatsSafe(a, b) {
+  return { ok: Math.max((a && a.ok) || 0, (b && b.ok) || 0), ko: Math.max((a && a.ko) || 0, (b && b.ko) || 0) };
+}
+window.__lastRemoteStats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
+// Chiamata dopo un reset volontario (Ricomincia / Azzera statistiche): allinea il
+// riferimento remoto allo stato appena azzerato, così il prossimo invio al cloud
+// propaga davvero lo zero invece di essere "risollevato" dal merge di sicurezza.
+window.__markStatsCanonical = function(newStats) { window.__lastRemoteStats = JSON.parse(JSON.stringify(newStats)); };
+
 window.__cloudSyncReady = false;
 // Nuovo: finché non abbiamo applicato almeno una volta lo stato reale letto dal cloud
 // (onRemoteData completato), non permettiamo NESSUN invio locale. Questo evita che,
@@ -1403,8 +1427,18 @@ function markLocalUpdate(ts) {
 async function pushNow() {
   if (!docRef) return;
   const ts = Date.now();
+  const localStats = JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}');
+  // Fonde col massimo conosciuto dal cloud prima di inviare: se questo dispositivo
+  // era rimasto scollegato ed è ancora indietro, non rispedisce indietro anche l'altro.
+  const safeStats = mergeStatsSafe(localStats, window.__lastRemoteStats);
+  if (JSON.stringify(safeStats) !== JSON.stringify(localStats)) {
+    stats = safeStats;
+    localStorage.setItem('ep_stats2', JSON.stringify(stats));
+    if (typeof updateNavScore === 'function') updateNavScore();
+  }
+  window.__lastRemoteStats = safeStats;
   const payload = {
-    stats:   JSON.parse(localStorage.getItem('ep_stats2') || '{"ok":0,"ko":0}'),
+    stats:   safeStats,
     errors:  JSON.parse(localStorage.getItem('ep_errors') || '[]'),
     session: JSON.parse(localStorage.getItem('ep_quiz_progress') || 'null'),
     updatedAt: ts
@@ -1439,6 +1473,10 @@ function onRemoteData(data, exists) {
     return;
   }
   if (!data || typeof data.updatedAt !== 'number' || data.updatedAt <= lastKnownUpdateAt) {
+    // Anche se questo aggiornamento non è "più recente" per timestamp, teniamo comunque
+    // traccia del valore visto sul cloud: serve da riferimento al prossimo invio locale
+    // per il merge di sicurezza (mai far tornare indietro i contatori).
+    if (data && data.stats) window.__lastRemoteStats = mergeStatsSafe(window.__lastRemoteStats, data.stats);
     setSyncUI('synced');
     window.__startupHandled = true;
     return;
@@ -1446,9 +1484,14 @@ function onRemoteData(data, exists) {
 
   markLocalUpdate(data.updatedAt);
 
-  // Statistiche ed errori: applicati subito, live, senza ricaricare la pagina.
+  // Statistiche: si fondono col massimo tra locale e remoto, non si sovrascrivono
+  // mai col valore assoluto arrivato dal cloud. Questo evita che un aggiornamento
+  // "in ritardo" (es. dopo un problema di rete come QUIC_TOO_MANY_RTOS) riporti
+  // indietro il conteggio delle risposte giuste/sbagliate.
   if (data.stats) {
-    stats = data.stats;
+    const safeStats = mergeStatsSafe(stats, data.stats);
+    window.__lastRemoteStats = safeStats;
+    stats = safeStats;
     localStorage.setItem('ep_stats2', JSON.stringify(stats));
   }
   if (data.errors) {
