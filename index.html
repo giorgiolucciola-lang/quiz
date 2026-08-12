@@ -488,7 +488,7 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.8 · 11 agosto 2026 · fix: i contatori e la posizione nel quiz non tornano più indietro dopo problemi di rete tra Mac e iPhone</div>
+<div class="app-footer">English Practice · v1.9 · 12 agosto 2026 · fix: forzato long-polling per Firestore per evitare errori di connessione QUIC ripetuti</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -1339,7 +1339,7 @@ function showSection(name, btn) {
 }
 
 // Init
-console.log('[Version] English Practice v1.8 · 11 agosto 2026 · fix: i contatori e la posizione nel quiz non tornano più indietro dopo problemi di rete tra Mac e iPhone');
+console.log('[Version] English Practice v1.9 · 12 agosto 2026 · fix: forzato long-polling per Firestore per evitare errori di connessione QUIC ripetuti');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
@@ -1539,7 +1539,13 @@ window.addEventListener('focus', () => forceRefreshFromCloud());
 try {
   const app = initializeApp(firebaseConfig);
   const auth = getAuth(app);
-  const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true, useFetchStreams: false });
+  // NB: prima usava "experimentalAutoDetectLongPolling", ma sulla rete di Giorgio
+  // il canale Listen di Firestore fallisce ripetutamente con errori QUIC
+  // (QUIC_PUBLIC_RESET / QUIC_TOO_MANY_RTOS) e si riconnette in continuazione.
+  // Forzando SEMPRE il long-polling classico (HTTP normale, non streaming)
+  // si evita del tutto quel canale problematico. È il rimedio standard
+  // consigliato da Google per reti/proxy/VPN che interferiscono con QUIC.
+  const db = initializeFirestore(app, { experimentalForceLongPolling: true, useFetchStreams: false });
   setSyncUI('connecting');
 
   onAuthStateChanged(auth, (user) => {
