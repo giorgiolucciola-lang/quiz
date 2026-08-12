@@ -488,7 +488,7 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.9 · 12 agosto 2026 · fix: forzato long-polling per Firestore per evitare errori di connessione QUIC ripetuti</div>
+<div class="app-footer">English Practice · v1.10 · 12 agosto 2026 · fix: evitati invii sovrapposti a Firestore che saturavano la coda di scrittura</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -1339,7 +1339,7 @@ function showSection(name, btn) {
 }
 
 // Init
-console.log('[Version] English Practice v1.9 · 12 agosto 2026 · fix: forzato long-polling per Firestore per evitare errori di connessione QUIC ripetuti');
+console.log('[Version] English Practice v1.10 · 12 agosto 2026 · fix: evitati invii sovrapposti a Firestore che saturavano la coda di scrittura');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
@@ -1456,10 +1456,29 @@ async function pushNow() {
 
 // Esposta al codice principale (script classico) tramite window,
 // perché uno script "module" ha uno scope separato per le proprie funzioni.
+// ── Guard anti-sovrapposizione ──
+// Se le risposte arrivano rapidamente e la rete è lenta in quel momento, un
+// invio precedente potrebbe non essere ancora concluso quando ne parte un
+// altro: gli invii si accavallano e saturano la coda di scrittura di
+// Firestore (errore "Write stream exhausted maximum allowed queued writes").
+// Dato che ogni invio contiene SEMPRE lo stato completo più recente (non un
+// incremento), non serve mai inviarne più di uno alla volta: se uno è già
+// in corso, ne segnamo semplicemente un altro subito dopo la sua fine.
+let pushInFlight = false;
+let pushAgainNeeded = false;
+function triggerPush() {
+  if (!docRef) return;
+  if (pushInFlight) { pushAgainNeeded = true; return; }
+  pushInFlight = true;
+  pushNow().finally(() => {
+    pushInFlight = false;
+    if (pushAgainNeeded) { pushAgainNeeded = false; triggerPush(); }
+  });
+}
 window.__cloudSyncImpl = function() {
   if (!docRef) return;
   clearTimeout(pushTimer);
-  pushTimer = setTimeout(pushNow, 900);
+  pushTimer = setTimeout(triggerPush, 900);
 };
 
 function onRemoteData(data, exists) {
