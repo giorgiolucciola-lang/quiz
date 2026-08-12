@@ -356,7 +356,7 @@
     <span id="sync-label">sync...</span>
   </div>
   <div class="score-pill-group">
-    <div class="score-pill">
+    <div class="score-pill" title="Totale storico di tutte le sessioni (si azzera solo con Ricomincia o Azzera statistiche)">
       <span><span class="dot dot-g"></span><span id="nav-ok">0</span></span>
       <span><span class="dot dot-r"></span><span id="nav-ko">0</span></span>
       <span><span class="dot dot-o"></span><span id="nav-skip">0</span></span>
@@ -488,7 +488,7 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.11 · 12 agosto 2026 · fix: il quiz non si blocca più su verbi con past/participle mancanti nel foglio</div>
+<div class="app-footer">English Practice · v1.12 · 12 agosto 2026 · fix: la schermata di fine quiz mostra il risultato del giro appena fatto, non lo storico cumulativo</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -1008,7 +1008,10 @@ function showFinished() {
   if (reviewSession) {
     document.getElementById('q-hint').textContent = `${reviewSession.ok} corrette · ${reviewSession.ko} sbagliate · ${reviewSession.skip} saltate`;
   } else {
-    document.getElementById('q-hint').textContent = `${stats.ok} corrette · ${stats.ko} sbagliate`;
+    // Mostra il risultato di QUESTO giro (sessionOk/sessionKo/sessionSkip),
+    // non lo storico cumulativo di tutte le sessioni passate (stats.ok/stats.ko):
+    // altrimenti i numeri non tornerebbero mai con il totale delle parole appena fatte.
+    document.getElementById('q-hint').textContent = `${sessionOk} corrette · ${sessionKo} sbagliate${sessionSkip ? ' · ' + sessionSkip + ' saltate' : ''}`;
   }
   document.getElementById('fields-grid').innerHTML = '';
   document.getElementById('feedback').textContent = '';
@@ -1027,7 +1030,7 @@ function showFinished() {
   if (elPos) elPos.textContent = `${deck.length} / ${deck.length}`;
   const elPct = document.getElementById('progress-pct');
   if (elPct) {
-    const pctSrc = reviewSession || stats;
+    const pctSrc = reviewSession || {ok: sessionOk, ko: sessionKo};
     const tot = pctSrc.ok + pctSrc.ko;
     const pct = tot ? Math.round(pctSrc.ok / tot * 100) : null;
     elPct.textContent = pct !== null ? pct + '%' : '—';
@@ -1358,7 +1361,7 @@ function showSection(name, btn) {
 }
 
 // Init
-console.log('[Version] English Practice v1.11 · 12 agosto 2026 · fix: il quiz non si blocca più su verbi con past/participle mancanti nel foglio');
+console.log('[Version] English Practice v1.12 · 12 agosto 2026 · fix: la schermata di fine quiz mostra il risultato del giro appena fatto, non lo storico cumulativo');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
