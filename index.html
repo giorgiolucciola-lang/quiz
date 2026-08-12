@@ -488,7 +488,7 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.10 · 12 agosto 2026 · fix: evitati invii sovrapposti a Firestore che saturavano la coda di scrittura</div>
+<div class="app-footer">English Practice · v1.11 · 12 agosto 2026 · fix: il quiz non si blocca più su verbi con past/participle mancanti nel foglio</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -596,6 +596,8 @@ async function loadFromSheet() {
     const loaded = [];
     const seen = new Set();
     let skippedEmpty = 0;
+    let skippedIncomplete = 0; // verbi marcati come tali ma senza past/participle nel foglio
+    const incompleteWords = [];
 
     for (const row of rows) {
       if (!row.trim()) continue; // salta righe vuote
@@ -621,6 +623,16 @@ async function loadFromSheet() {
                  : (typeRaw.toUpperCase() === 'W') ? 'vocab'
                  : (past ? 'verb' : 'vocab');
 
+      // Un verbo senza past simple o past participle compilati nel foglio
+      // manderebbe in errore il controllo della risposta durante il quiz,
+      // bloccando la card a metà. Meglio scartarlo qui e segnalarlo in
+      // console, così la riga nel foglio può essere corretta con calma.
+      if (type === 'verb' && (!past || !part)) {
+        skippedIncomplete++;
+        incompleteWords.push(it);
+        continue;
+      }
+
       loaded.push({
         it,
         base,
@@ -630,7 +642,10 @@ async function loadFromSheet() {
       });
     }
 
-    console.log(`[Sheet] Righe totali: ${rows.length}, caricate: ${loaded.length}, saltate vuote: ${skippedEmpty}`);
+    console.log(`[Sheet] Righe totali: ${rows.length}, caricate: ${loaded.length}, saltate vuote: ${skippedEmpty}, verbi incompleti scartati: ${skippedIncomplete}`);
+    if (incompleteWords.length > 0) {
+      console.warn('[Sheet] Verbi scartati perché senza past/participle nel foglio:', incompleteWords.join(', '));
+    }
 
     if (loaded.length > 0) {
       RAW = loaded;
@@ -856,6 +871,10 @@ function norm(s) { return s.trim().toLowerCase(); }
 
 // Controlla risposta accettando alternative separate da /
 function chkMulti(userVal, correct) {
+  // Se manca il dato di riferimento (es. verbo nel foglio senza past/participle
+  // compilati), non bloccare il controllo con un errore: segna semplicemente
+  // come sbagliato, così il quiz può comunque proseguire regolarmente.
+  if (!correct) return false;
   const alternatives = correct.split(/[,/]/).map(a => norm(a.trim()));
   return alternatives.includes(norm(userVal));
 }
@@ -1339,7 +1358,7 @@ function showSection(name, btn) {
 }
 
 // Init
-console.log('[Version] English Practice v1.10 · 12 agosto 2026 · fix: evitati invii sovrapposti a Firestore che saturavano la coda di scrittura');
+console.log('[Version] English Practice v1.11 · 12 agosto 2026 · fix: il quiz non si blocca più su verbi con past/participle mancanti nel foglio');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
