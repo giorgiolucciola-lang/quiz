@@ -338,6 +338,29 @@
     .card-word { font-size: 24px; }
     nav { flex-wrap: wrap; gap: 8px; }
   }
+
+  /* Pannello info tecniche (nascosto, richiamabile dal pulsante ⓘ in fondo) */
+  .info-toggle-btn {
+    background: none; border: none; color: var(--text3);
+    font-size: 12px; cursor: pointer; text-decoration: underline;
+    font-family: 'Outfit', sans-serif; padding: 4px;
+  }
+  .info-toggle-btn:hover { color: var(--accent); }
+  .info-panel {
+    display: none; text-align: left; max-width: 560px; margin: 16px auto 0;
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 10px; padding: 18px 22px; font-size: 13px;
+    color: var(--text2); line-height: 1.7;
+  }
+  .info-panel.open { display: block; }
+  .info-panel h3 { font-family: 'Lora', serif; font-size: 15px; color: var(--accent); margin: 14px 0 4px; }
+  .info-panel h3:first-child { margin-top: 0; }
+  .info-panel code {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 4px; padding: 1px 6px; font-size: 12px; color: var(--text);
+  }
+  .info-panel a { color: var(--accent); }
+  .info-panel .info-note { font-size: 12px; color: var(--text3); margin-top: 12px; font-style: italic; }
 </style>
 </head>
 <body>
@@ -488,7 +511,35 @@
   <span class="reset-link" onclick="resetStats()">Azzera statistiche</span>
 </div>
 
-<div class="app-footer">English Practice · v1.12 · 12 agosto 2026 · fix: la schermata di fine quiz mostra il risultato del giro appena fatto, non lo storico cumulativo</div>
+<div class="app-footer">
+  English Practice · v1.13 · 26 agosto 2026 · aggiunta leggenda tecnica nascosta + diagnostica sincronizzazione
+  <div><button class="info-toggle-btn" onclick="toggleInfoPanel()" id="info-toggle-btn">ⓘ Info tecniche / dove sono i dati</button></div>
+  <div class="info-panel" id="info-panel">
+    <h3>App</h3>
+    Nome: <strong>English Practice</strong><br>
+    URL pubblico: <code><a href="https://giorgiolucciola-lang.github.io/quiz/" target="_blank">giorgiolucciola-lang.github.io/quiz/</a></code><br>
+    Repository GitHub: <code>giorgiolucciola-lang/quiz</code><br>
+    File: <code>index.html</code> (quiz principale) · <code>errors-practice.html</code> (ripasso errori) · <code>pratica.html</code> (app italiana separata, dati solo locali)
+
+    <h3>Database vocaboli (verbi + vocaboli)</h3>
+    Google Sheet, ID: <code>1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY</code><br>
+    Foglio interno usato: <code>Foglio1</code><br>
+    Colonne lette: A=italiano · F=forma base inglese · G=past simple · H=past participle · M=tipo (V=verbo, W=vocabolo)<br>
+    Apri il foglio: <a href="https://docs.google.com/spreadsheets/d/1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY" target="_blank">docs.google.com/spreadsheets/d/1ACOJ63...</a>
+
+    <h3>Sincronizzazione Mac ↔ iPhone</h3>
+    Firebase Firestore, progetto: <code>english-practice-87950</code><br>
+    Documento fisso: <code>sync/giorgio_english_practice</code><br>
+    Autenticazione: anonima (nessun login richiesto)<br>
+    Console Firebase: <a href="https://console.firebase.google.com/project/english-practice-87950/firestore" target="_blank">console.firebase.google.com</a>
+
+    <h3>Dati salvati nel browser (localStorage)</h3>
+    <code>ep_stats2</code> statistiche · <code>ep_errors</code> errori · <code>ep_quiz_progress</code> sessione in corso<br>
+    (in <code>pratica.html</code>: <code>evv_words</code>, <code>evv_stats</code>, <code>evv_errors</code>, <code>evv_quiz_progress</code>)
+
+    <div class="info-note">Questo pannello è solo per consultazione tua, non modifica nulla. Se un giorno serve ritrovare "dove sono i dati", parti da qui.</div>
+  </div>
+</div>
 
 <script>
 const SHEET_ID = '1ACOJ63Q9Jq8Npn8srEqIf-8xUjOVeJaWbdjp6Y4DVcY'; // Esercitazione Verbi Irregolari e Vocaboli
@@ -1360,8 +1411,15 @@ function showSection(name, btn) {
   if(name==='errors') renderErrors();
 }
 
+function toggleInfoPanel() {
+  const panel = document.getElementById('info-panel');
+  const btn = document.getElementById('info-toggle-btn');
+  const open = panel.classList.toggle('open');
+  btn.textContent = open ? 'ⓘ Nascondi info tecniche' : 'ⓘ Info tecniche / dove sono i dati';
+}
+
 // Init
-console.log('[Version] English Practice v1.12 · 12 agosto 2026 · fix: la schermata di fine quiz mostra il risultato del giro appena fatto, non lo storico cumulativo');
+console.log('[Version] English Practice v1.13 · 26 agosto 2026 · aggiunta leggenda tecnica nascosta + diagnostica sincronizzazione');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
@@ -1429,11 +1487,23 @@ setTimeout(() => { window.__cloudSyncReady = true; window.__startupHandled = tru
 
 const syncDotEl   = document.getElementById('sync-dot');
 const syncLabelEl = document.getElementById('sync-label');
-function setSyncUI(state) {
+const syncStatusEl = document.getElementById('sync-status');
+// Tiene traccia dell'ultimo errore di sincronizzazione ricevuto, per poterlo
+// mostrare al tocco/passaggio del mouse sul pallino: così, se resta rosso,
+// si può leggere subito il motivo esatto (es. "permission denied" quando
+// scadono le regole di sicurezza Firestore) invece di doverlo indovinare.
+function setSyncUI(state, errorDetail) {
   const colors = { connecting:'#d0ccc4', synced:'#22c55e', offline:'#c0392b', saving:'#d4700a' };
   const labels = { connecting:'sync...', synced:'sincronizzato', offline:'offline', saving:'salvataggio...' };
   if (syncDotEl)   syncDotEl.style.background = colors[state] || '#d0ccc4';
   if (syncLabelEl) syncLabelEl.textContent = labels[state] || '';
+  if (syncStatusEl) {
+    if (state === 'offline' && errorDetail) {
+      syncStatusEl.title = 'Sincronizzazione tra dispositivi — errore: ' + errorDetail;
+    } else {
+      syncStatusEl.title = 'Sincronizzazione tra dispositivi';
+    }
+  }
 }
 
 let docRef = null;
@@ -1472,7 +1542,7 @@ async function pushNow() {
     setSyncUI('synced');
   } catch (e) {
     console.error('[Sync] Errore invio a Firestore:', e);
-    setSyncUI('offline');
+    setSyncUI('offline', (e && e.message) || String(e));
   }
 }
 
@@ -1596,7 +1666,7 @@ try {
       onRemoteData(snap.data(), snap.exists());
     }, (err) => {
       console.error('[Sync] Errore ascolto Firestore:', err);
-      setSyncUI('offline');
+      setSyncUI('offline', (err && err.message) || String(err));
     });
     // Al momento della connessione, fai subito anche una lettura manuale:
     // copre il caso in cui onSnapshot impieghi qualche istante ad attivarsi.
@@ -1605,12 +1675,12 @@ try {
 
   signInAnonymously(auth).catch((e) => {
     console.error('[Sync] Errore accesso anonimo:', e);
-    setSyncUI('offline');
+    setSyncUI('offline', (e && e.message) || String(e));
     window.__cloudSyncReady = true;
   });
 } catch (e) {
   console.error('[Sync] Errore inizializzazione Firebase:', e);
-  setSyncUI('offline');
+  setSyncUI('offline', (e && e.message) || String(e));
   window.__cloudSyncReady = true;
 }
 </script>
