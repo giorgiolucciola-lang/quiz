@@ -168,7 +168,7 @@
   .field-input:focus { border-color: var(--accent); background: #fff; }
   .field-input.correct { border-color: #4caf7a; background: #e8f8ef; color: #1a6e3a; font-weight: 600; }
   .field-input.wrong { border-color: #e05555; background: #fdeaea; color: #c0392b; font-weight: 600; }
-  .field-input:disabled { opacity: 1; cursor: default; }
+  .field-input:disabled, .field-input[readonly] { opacity: 1; cursor: default; }
 
   .answer-row { display: flex; gap: 10px; margin-top: 20px; align-items: center; flex-wrap: wrap; }
   .feedback-msg { font-size: 16px; font-weight: 500; flex: 1; min-height: 20px; }
@@ -512,7 +512,7 @@
 </div>
 
 <div class="app-footer">
-  English Practice · v1.13 · 26 agosto 2026 · aggiunta leggenda tecnica nascosta + diagnostica sincronizzazione
+  English Practice · v1.14 · 1 ottobre 2026 · Invio passa alla parola successiva anche dopo una risposta sbagliata
   <div><button class="info-toggle-btn" onclick="toggleInfoPanel()" id="info-toggle-btn">ⓘ Info tecniche / dove sono i dati</button></div>
   <div class="info-panel" id="info-panel">
     <h3>App</h3>
@@ -593,7 +593,7 @@ function startVoiceInput(fieldId, btn) {
     let transcript = e.results[0][0].transcript.trim();
     transcript = transcript.replace(/[.,!?;:]+$/, ''); // rimuove punteggiatura finale
     const el = document.getElementById(fieldId);
-    if (el && !el.disabled) { el.value = transcript; el.focus(); }
+    if (el && !el.disabled && !el.readOnly) { el.value = transcript; el.focus(); }
   };
   recognition.onerror = () => {};
   recognition.onend = () => {
@@ -944,7 +944,9 @@ function checkAnswer() {
     if (!el) return;
     const ok = chkMulti(el.value, correct);
     el.classList.add(ok ? 'correct' : 'wrong');
-    el.disabled = true;
+    // readOnly (non disabled): il campo resta a fuoco, così Invio passa alla parola successiva
+    // anche quando la risposta è sbagliata (e su iPhone la tastiera non si chiude)
+    el.readOnly = true;
     if (!ok) allCorrect = false;
     parts.push(correct);
   }
@@ -966,7 +968,8 @@ function checkAnswer() {
     document.getElementById('next-btn').style.display = 'inline-block';
     updateNavScore();
     speakCurrent();
-    setTimeout(() => { if(answered) { currentIdx++; showWord(); } }, 2000);
+    const idxAtAnswer = currentIdx;
+    setTimeout(() => { if (answered && currentIdx === idxAtAnswer) { currentIdx++; showWord(); } }, 2000);
   } else {
     if (reviewSession) { reviewSession.ko++; updateSessionBar(); reviewWrongWords.push(w); }
     else { stats.ko++; saveStats(); }
@@ -1419,7 +1422,7 @@ function toggleInfoPanel() {
 }
 
 // Init
-console.log('[Version] English Practice v1.13 · 26 agosto 2026 · aggiunta leggenda tecnica nascosta + diagnostica sincronizzazione');
+console.log('[Version] English Practice v1.14 · 1 ottobre 2026 · Invio passa alla parola successiva anche dopo una risposta sbagliata');
 window.speechSynthesis.onvoiceschanged = () => {};
 if (!isSpeechSupported()) document.body.classList.add('no-speech');
 updateNavScore();
@@ -1640,6 +1643,17 @@ async function forceRefreshFromCloud() {
     console.error('[Sync] Errore rilettura manuale Firestore:', e);
   }
 }
+
+// Invio = parola successiva dopo la verifica, anche se il focus non è più sul campo
+document.addEventListener('keydown', (e) => {
+  if (e.key !== 'Enter' || e.defaultPrevented || !answered) return;
+  if (!document.getElementById('sec-quiz').classList.contains('active')) return;
+  const t = e.target;
+  if (t && (t.tagName === 'BUTTON' || t.tagName === 'TEXTAREA' || t.tagName === 'SELECT' || (t.tagName === 'INPUT' && !t.classList.contains('field-input')))) return;
+  if (document.getElementById('next-btn').style.display === 'none') return;
+  e.preventDefault();
+  nextWord();
+});
 
 document.addEventListener('visibilitychange', () => {
   if (document.visibilityState === 'visible') forceRefreshFromCloud();
