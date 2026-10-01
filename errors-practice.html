@@ -133,7 +133,7 @@
   .field-input:focus { border-color: var(--accent); background: #fff; }
   .field-input.correct { border-color: #4caf7a; background: #e8f8ef; color: #1a6e3a; font-weight: 600; }
   .field-input.wrong { border-color: #e05555; background: #fdeaea; color: #c0392b; font-weight: 600; }
-  .field-input:disabled { opacity: 1; cursor: default; }
+  .field-input:disabled, .field-input[readonly] { opacity: 1; cursor: default; }
 
   .answer-row { display: flex; gap: 10px; margin-top: 20px; align-items: center; flex-wrap: wrap; }
   .feedback-msg { font-size: 16px; font-weight: 500; flex: 1; min-height: 20px; }
@@ -354,7 +354,7 @@ function checkAnswer() {
     if (!el) return;
     const ok = chkMulti(el.value, correct);
     el.classList.add(ok ? 'correct' : 'wrong');
-    el.disabled = true;
+    el.readOnly = true; // resta a fuoco: Invio passa avanti e su iPhone la tastiera non si chiude
     if (!ok) allCorrect = false;
     parts.push(correct);
   }
